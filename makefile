@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	tsc --outDir build/ src/*.ts && cp -r public/* build/
+	tsc && cp -r public/* build/
 
 clean:
 	rm -rf build/
