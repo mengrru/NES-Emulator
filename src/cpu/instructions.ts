@@ -46,27 +46,27 @@ const setFlag = {
 // return cycle
 export const Instructions = {
     'ADC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        // const operand = AddressingMode[mode](cpu, arg)
-        const { operand } = addrRes
-        const res = cpu.PS.C + operand + cpu.Register.A
+        // const data = AddressingMode[mode](cpu, arg)
+        const { data } = addrRes
+        const res = cpu.PS.C + data + cpu.Register.A
         cpu.Register.A = res & 0xff
 
         setFlag.Z(cpu.PS, cpu.Register.A)
         setFlag.C(cpu.PS, res > 0xff)
         setFlag.N(cpu.PS, cpu.Register.A)
-        setFlag.V(cpu.PS, cpu.Register.A, operand, res & 0xff)
+        setFlag.V(cpu.PS, cpu.Register.A, data, res & 0xff)
         return 0
     },
 
     'SBC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        addrRes.operand = ((~addrRes.operand) & 0xff) + 1
+        addrRes.data = ((~addrRes.data) & 0xff)// + 1
         Instructions.ADC(cpu, mode, addrRes)
         return 0
     },
 
     'AND': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        const res = cpu.Register.A & operand
+        const { data } = addrRes
+        const res = cpu.Register.A & data
         cpu.Register.A = res
 
         setFlag.Z(cpu.PS, cpu.Register.A)
@@ -75,8 +75,8 @@ export const Instructions = {
     },
 
     'ASL': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand, addr } = addrRes
-        const res = operand << 1
+        const { data, addr } = addrRes
+        const res = data << 1
         // ?
         if (mode == 'AC') {
             cpu.Register.A = res & 0xff
@@ -90,10 +90,10 @@ export const Instructions = {
     },
 
     'BCC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.C === 0) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -105,10 +105,10 @@ export const Instructions = {
     },
 
     'BCS': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.C === 1) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -120,10 +120,10 @@ export const Instructions = {
     },
 
     'BEQ': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.Z === 1) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -135,19 +135,18 @@ export const Instructions = {
     },
 
     'BIT': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        // ?
-        const { operand } = addrRes
-        setFlag.Z(cpu.PS, cpu.Register.A & operand)
-        cpu.PS.V = (operand >> 6) & 1
-        setFlag.N(cpu.PS, operand)
+        const { data } = addrRes
+        setFlag.Z(cpu.PS, cpu.Register.A & data)
+        cpu.PS.V = (data >> 6) & 1
+        setFlag.N(cpu.PS, data)
         return 0
     },
 
     'BMI': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.N === 1) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -159,10 +158,10 @@ export const Instructions = {
     },
     
     'BNE': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.Z === 0) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -174,10 +173,10 @@ export const Instructions = {
     },
 
     'BPL': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.N === 0) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -200,10 +199,10 @@ export const Instructions = {
     },
 
     'BVC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.V === 0) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -215,10 +214,10 @@ export const Instructions = {
     },
 
     'BVS': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const oldPC = cpu.Register.PC
         if (cpu.PS.V === 1) {
-            const res = uint16(cpu.Register.PC + int8(operand))
+            const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
             if (isCorssPage(cpu.Register.PC, oldPC)) {
                 return 2
@@ -250,35 +249,35 @@ export const Instructions = {
     },
 
     'CMP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const r = cpu.Register.A
-        setFlag.C(cpu.PS, r >= operand)
-        setFlag.Z(cpu.PS, r - operand)
-        setFlag.N(cpu.PS, r - operand)
+        setFlag.C(cpu.PS, r >= data)
+        setFlag.Z(cpu.PS, r - data)
+        setFlag.N(cpu.PS, r - data)
         return 0
     },
 
     'CPX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const r = cpu.Register.X
-        setFlag.C(cpu.PS, r >= operand)
-        setFlag.Z(cpu.PS, r - operand)
-        setFlag.N(cpu.PS, r - operand)
+        setFlag.C(cpu.PS, r >= data)
+        setFlag.Z(cpu.PS, r - data)
+        setFlag.N(cpu.PS, r - data)
         return 0
     },
 
     'CPY': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
+        const { data } = addrRes
         const r = cpu.Register.Y
-        setFlag.C(cpu.PS, r >= operand)
-        setFlag.Z(cpu.PS, r - operand)
-        setFlag.N(cpu.PS, r - operand)
+        setFlag.C(cpu.PS, r >= data)
+        setFlag.Z(cpu.PS, r - data)
+        setFlag.N(cpu.PS, r - data)
         return 0
     },
 
     'DEC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { addr, operand } = addrRes
-        const res = (operand - 1) & 0xff
+        const { addr, data } = addrRes
+        const res = (data - 1) & 0xff
         cpu.memWrite(addr, res)
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
@@ -286,8 +285,7 @@ export const Instructions = {
     },
 
     'DEX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        // const res = (cpu.Register.X - 1) & 0xff
-        const res = cpu.Register.X - 1
+        const res = (cpu.Register.X - 1) & 0xff
         cpu.Register.X = res
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
@@ -303,8 +301,8 @@ export const Instructions = {
     },
 
     'INC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { addr, operand } = addrRes
-        const res = (operand + 1) & 0xff
+        const { addr, data } = addrRes
+        const res = (data + 1) & 0xff
         cpu.memWrite(addr, res)
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
@@ -328,8 +326,8 @@ export const Instructions = {
     },
 
     'EOR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        const res = cpu.Register.A ^ operand
+        const { data } = addrRes
+        const res = cpu.Register.A ^ data
         cpu.Register.A = res
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
@@ -351,43 +349,43 @@ export const Instructions = {
 
     'RTS': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         cpu.Register.PC = uint16(cpu.pull16() + 1)
-        console.log('RTS:' + cpu.Register.PC.toString(16))
+        // console.log('RTS:' + cpu.Register.PC.toString(16))
         return 0
     },
 
     'LDA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        cpu.Register.A = operand
+        const { data } = addrRes
+        cpu.Register.A = data
         setFlag.Z(cpu.PS, cpu.Register.A)
         setFlag.N(cpu.PS, cpu.Register.A)
         return 0
     },
 
     'LDX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        cpu.Register.X = operand
+        const { data } = addrRes
+        cpu.Register.X = data
         setFlag.Z(cpu.PS, cpu.Register.X)
         setFlag.N(cpu.PS, cpu.Register.X)
         return 0
     },
 
     'LDY': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        cpu.Register.Y = operand
+        const { data } = addrRes
+        cpu.Register.Y = data
         setFlag.Z(cpu.PS, cpu.Register.Y)
         setFlag.N(cpu.PS, cpu.Register.Y)
         return 0
     },
 
     'LSR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { addr, operand } = addrRes
-        const res = operand >> 1
+        const { addr, data } = addrRes
+        const res = data >> 1
         if (mode === 'AC') {
             cpu.Register.A = res
         } else {
             cpu.memWrite(addr, res)
         }
-        cpu.PS.C = operand & 1
+        cpu.PS.C = data & 1
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
         return 0
@@ -398,8 +396,8 @@ export const Instructions = {
     },
 
     'ORA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { operand } = addrRes
-        const res = cpu.Register.A | operand
+        const { data } = addrRes
+        const res = cpu.Register.A | data
         cpu.Register.A = res
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
@@ -431,14 +429,14 @@ export const Instructions = {
     },
 
     'ROL': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { addr, operand } = addrRes
-        const res = (operand << 1) | cpu.PS.C
+        const { addr, data } = addrRes
+        const res = (data << 1) | cpu.PS.C
         if (mode === 'AC') {
             cpu.Register.A = res & 0xff
         } else {
             cpu.memWrite(addr, res & 0xff)
         }
-        setFlag.C(cpu.PS, (operand & 128) > 0)
+        setFlag.C(cpu.PS, (data & 128) > 0)
         // ? only acc or all
         setFlag.Z(cpu.PS, res & 0xff)
         setFlag.N(cpu.PS, res & 0xff)
@@ -446,14 +444,14 @@ export const Instructions = {
     },
 
     'ROR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        const { addr, operand } = addrRes
-        const res = (operand >> 1) | (cpu.PS.C << 7)
+        const { addr, data } = addrRes
+        const res = (data >> 1) | (cpu.PS.C << 7)
         if (mode === 'AC') {
             cpu.Register.A = res & 0xff
         } else {
             cpu.memWrite(addr, res & 0xff)
         }
-        setFlag.C(cpu.PS, (operand & 1) > 0)
+        setFlag.C(cpu.PS, (data & 1) > 0)
         // ? only acc or all
         setFlag.Z(cpu.PS, res & 0xff)
         setFlag.N(cpu.PS, res & 0xff)
@@ -463,6 +461,7 @@ export const Instructions = {
     'RTI': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         // ?
         cpu.Register.PS = cpu.pull8()
+        setFlag.B(cpu.PS, 'IRQ')
         cpu.Register.PC = cpu.pull16()
         return 0
     },

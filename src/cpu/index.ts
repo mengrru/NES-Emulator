@@ -3,26 +3,16 @@ import { PS, REG, ICPU, BYTE } from './cpu.d'
 import { Instructions } from './instructions'
 import Opcode from './opcode'
 
-// load program code into memory starting at 0x8000 address.
-// Program ROM: 0x8000 - 0xffff
-// instruction stream start somewhere in this space (not necessarily at 0x8000)
-
-
-enum ADDR_SPACE {
-    PRG_ROM_START = 0x8000,
-    PRG_ROM_END = 0xffff,
-}
-
-enum SPEC_ADDR {
-    RESET_PC_STORED_IN = 0xfffc,
-}
-
 export default class CPU implements ICPU{
     Register: REG
     PS: PS
     Memory: number[]
-    constructor () {
-        this.Memory = Array(0xffff + 1).fill(-1)
+    memoryMap: any
+    timeout: NodeJS.Timeout
+    runningCallback: () => void = () => {}
+    constructor (memoryMap: any, bus?: any) {
+        this.Memory = Array(0xffff + 1).fill(0)
+        this.memoryMap = memoryMap
         this.PS = {
             C: 0,
             Z: 0,
@@ -61,14 +51,20 @@ export default class CPU implements ICPU{
             }
         }
     }
+    registerRunningCallback (fn: () => void) {
+        this.runningCallback = fn
+    }
     test_loadPRGROM (program: BYTE[]) {
-        let cur = ADDR_SPACE.PRG_ROM_START
+        let cur = this.memoryMap.ADDR_SPACE.PRG_ROM_START
         for (let i = 0; i < program.length; i++) {
             this.Memory[cur] = program[i]
             cur++
         }
         // store #0x8000 to 0xfffc
-        this.memWrite(SPEC_ADDR.RESET_PC_STORED_IN, ADDR_SPACE.PRG_ROM_START, 2)
+        this.memWrite(
+            this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN,
+            this.memoryMap.ADDR_SPACE.PRG_ROM_START, 2
+        )
     }
     test_runProgram (program: BYTE[]) {
         this.test_loadPRGROM(program)
@@ -76,17 +72,21 @@ export default class CPU implements ICPU{
         this.run(program)
     }
     run (program: number[]) {
-        if (this.Register.PC === ADDR_SPACE.PRG_ROM_END ||
-            this.Register.PC === 0 ||
-            (this.Register.PC - ADDR_SPACE.PRG_ROM_START) === program.length ||
-            this.memRead(this.Register.PC) === -1 ||
-            this.Register.PC === -1) {
-            return
-        }
-        const cycles = this.execOnce()
-        // setTimeout(() => {
-            this.run(program)
-        // }, cycles * 10);
+        this.timeout = setInterval(() => {
+            const { ADDR_SPACE } = this.memoryMap
+            if (this.Register.PC === ADDR_SPACE.PRG_ROM_END ||
+                this.Register.PC === 0 ||
+                (this.Register.PC - ADDR_SPACE.PRG_ROM_START) === program.length ||
+                this.memRead(this.Register.PC) === -1 ||
+                this.Register.PC === -1) {
+                return
+            }
+            for (let i = 0; i < 97; i++) {
+                // const cycles = this.execOnce()
+                this.execOnce()
+            }
+            this.runningCallback()
+        }, 15);
     }
     test_exec (num: number = 1) {
         for (let i = 0; i < num; i++) {
@@ -95,7 +95,7 @@ export default class CPU implements ICPU{
     }
     execOnce (): number {
         const { opcInfo, arg } = this.readAStatement()
-        console.log(opcInfo.name + '[' + opcInfo.mode + ']' + arg.toString(16))
+        // console.log(opcInfo.name + '[' + opcInfo.mode + ']' + arg.toString(16))
         const addrRes = AddressingMode[opcInfo.mode](this, arg)
         let cycles = opcInfo.cycles
         cycles += Instructions[opcInfo.name](this, opcInfo.mode, addrRes)
@@ -107,6 +107,7 @@ export default class CPU implements ICPU{
         // console.log(opcode)
         const opcInfo = Opcode[opcode]
         if (!opcInfo) {
+            clearInterval(this.timeout)
             throw new Error('opcode ' + opcode + ' is not exist.')
         }
         let arg = 0
@@ -134,11 +135,11 @@ export default class CPU implements ICPU{
     IR_RESET () {
         this.Register.A = 0
         this.Register.X = 0
-        // this.Register.Y = 0
+        this.Register.Y = 0
         this.Register.PS = 0
         // ?
         this.PS.B = 0b11
-        this.Register.PC = this.memRead(SPEC_ADDR.RESET_PC_STORED_IN, 2)
+        this.Register.PC = this.memRead(this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN, 2)
     }
     push8 (value: number) {
         // The CPU does not detect if the stack is overflowed
@@ -152,7 +153,7 @@ export default class CPU implements ICPU{
         const high8 = (value >> 8) & 0xff
         this.push8(high8)
         this.push8(low8)
-        console.log('push16:' + this.Register.SP)
+        // console.log('push16:' + this.Register.SP)
     }
     pull8 () {
         this.Register.SP++
@@ -162,7 +163,7 @@ export default class CPU implements ICPU{
     pull16 () {
         const low8 = this.pull8()
         const high8 = this.pull8()
-        console.log('pull16:' + this.Register.SP)
+        // console.log('pull16:' + this.Register.SP)
         return low8 | (high8 << 8)
     }
     memWrite (addr: number, value: number, byteNum: number = 1) {

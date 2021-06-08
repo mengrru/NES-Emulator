@@ -11,7 +11,7 @@ export type UINT16 = number
 
 export type AddressingRes = {
     addr: ADDR
-    operand: number
+    data: number
 }
 export type ADDRMODE = {
     // Immediate
@@ -65,6 +65,7 @@ export interface ICPU {
     Register: REG
     PS: PS
     Memory: number[]
+    memoryMap: any
     push8: (value: number) => void
     push16: (value: number) => void
     pull8: () => UINT8

@@ -1,8 +1,9 @@
 import CPU from "../src/cpu"
+import { NESMap } from '../src/memory-map'
 
 test('test_loadPRGROM', () => {
   const program = [0xa9, 0xc0, 0xaa, 0xe8, 0x69, 0xc4, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_loadPRGROM(program)
   const m = cpu.Memory
   expect(m[0x8000]).toBe(0xa9)
@@ -14,14 +15,14 @@ test('test_loadPRGROM', () => {
 })
 test('IR_RESET', () => {
   const program = [0xa9, 0xc0, 0xaa, 0xe8, 0x69, 0xc4, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_loadPRGROM(program)
   cpu.IR_RESET()
   expect(cpu.Register.PC).toBe(0x8000)
 })
 test('readAStatement', () => {
   const program = [0xa9, 0xc0, 0xaa, 0xe8, 0x69, 0xc4, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   const m = cpu.Memory
   cpu.test_loadPRGROM(program)
   cpu.IR_RESET()
@@ -48,7 +49,7 @@ STA $0202
   */
   const program = [0xa9, 0x01, 0x8d, 0x00, 0x02, 0xa9, 0x05, 0x8d,
                    0x01, 0x02, 0xa9, 0x08, 0x8d, 0x02, 0x02]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x08)
   expect(cpu.Register.X).toBe(0x00)
@@ -67,7 +68,7 @@ BRK       ;Break - we're done
   */
   // expect(sum(1, 2)).toBe(3);
   const program = [0xa9, 0xc0, 0xaa, 0xe8, 0x69, 0xc4, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x84)
   expect(cpu.Register.X).toBe(0xc1)
@@ -89,7 +90,7 @@ decrement:
   */
   const program = [0xa2, 0x08, 0xca, 0x8e, 0x00, 0x02, 0xe0,
                   0x03, 0xd0, 0xf8, 0x8e, 0x01, 0x02, 0x00 ]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x00)
   expect(cpu.Register.X).toBe(0x03)
@@ -107,7 +108,7 @@ notequal:
   BRK
   */
   const program = [0xa9, 0x01, 0xc9, 0x02, 0xd0, 0x02, 0x85, 0x22, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x01)
   expect(cpu.Register.X).toBe(0x00)
@@ -118,7 +119,7 @@ notequal:
 test('indexed indirect', () => {
   const program = [0xa2, 0x01, 0xa9, 0x05, 0x85, 0x01, 0xa9, 0x07,
                   0x85, 0x02, 0xa0, 0x0a, 0x8c, 0x05, 0x07, 0xa1, 0x00 ]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x0a)
   expect(cpu.Register.X).toBe(0x01)
@@ -129,7 +130,7 @@ test('indexed indirect', () => {
 test('indirect indexed', () => {
   const program = [0xa0, 0x01, 0xa9, 0x03, 0x85, 0x01, 0xa9, 0x07,
                  0x85, 0x02, 0xa2, 0x0a, 0x8e, 0x04, 0x07, 0xb1, 0x01 ]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x0a)
   expect(cpu.Register.X).toBe(0x0a)
@@ -159,7 +160,7 @@ secondloop:
   const program = [0xa2, 0x00, 0xa0, 0x00, 0x8a, 0x99, 0x00, 0x02, 0x48,
     0xe8, 0xc8, 0xc0, 0x10, 0xd0, 0xf5, 0x68, 0x99, 0x00, 0x02, 0xc8,
     0xc0, 0x20, 0xd0, 0xf7]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_loadPRGROM(program)
   cpu.IR_RESET()
   // ldx 0x00
@@ -188,7 +189,7 @@ secondloop:
   expect(cpu.Register.PS).toBe(0b00110011)
   expect(cpu.Register.SP).toBe(0xff)
 
-  const cpu2 = new CPU()
+  const cpu2 = new CPU(NESMap)
   cpu2.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x00)
   expect(cpu.Register.X).toBe(0x10)
@@ -208,7 +209,7 @@ there:
   */
   const program = [0xa9, 0x03, 0x4c, 0x08, 0x80, 0x00, 0x00, 0x00,
     0x8d, 0x00, 0x02 ]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x03)
   expect(cpu.Register.X).toBe(0)
@@ -237,7 +238,7 @@ end:
   */
   const program = [0x20, 0x09, 0x80, 0x20, 0x0c, 0x80, 0x20, 0x12,
     0x80, 0xa2, 0x00, 0x60, 0xe8, 0xe0, 0x05, 0xd0, 0xfb, 0x60, 0x00]
-  const cpu = new CPU()
+  const cpu = new CPU(NESMap)
   cpu.test_runProgram(program)
   expect(cpu.Register.A).toBe(0x00)
   expect(cpu.Register.X).toBe(0x05)
