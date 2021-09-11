@@ -210,7 +210,137 @@ export default {
 
     0x9a: e('TXS', 0x9a, 1, 2, 0, 'IM'),
 
-    0x98: e('TYA', 0x98, 1, 2, 0, 'IM')
+    0x98: e('TYA', 0x98, 1, 2, 0, 'IM'),
+
+    // https://www.nesdev.com/undocumented_opcodes.txt
+    0x0b: e('AAC', 0x0b, 2, 2, 0, 'I'),
+    0x2b: e('ACC', 0x2b, 2, 2, 0, 'I'),
+
+    0x87: e('AAX', 0x87, 2, 3, 0, 'Z'),
+    0x97: e('AAX', 0x97, 2, 4, 0, 'ZY'),
+    0x83: e('AAX', 0x83, 2, 6, 0, 'IX'),
+    0x8f: e('AAX', 0x8f, 3, 4, 0, 'A'),
+
+    0x6b: e('ARR', 0x6b, 2, 2, 0, 'I'),
+
+    0x4b: e('ASR', 0x4b, 2, 2, 0, 'I'),
+
+    0xab: e('ATX', 0xab, 2, 2, 0, 'I'),
+
+    0x9f: e('AXA', 0x9f, 3, 5, 0, 'AY'),
+    0x93: e('AXA', 0x93, 2, 6, 0, 'IY'),
+
+    0xcb: e('AXS', 0xcb, 2, 2, 0, 'I'),
+
+    0xc7: e('DCP', 0xc7, 2, 5, 0, 'Z'),
+    0xd7: e('DCP', 0xd7, 2, 6, 0, 'ZX'),
+    0xcf: e('DCP', 0xcf, 3, 6, 0, 'A'),
+    0xdf: e('DCP', 0xdf, 3, 7, 0, 'AX'),
+    0xdb: e('DCP', 0xdb, 3, 7, 0, 'AY'),
+    0xc3: e('DCP', 0xc3, 2, 8, 0, 'IX'),
+    0xd3: e('DCP', 0xd3, 2, 8, 0, 'IY'),
+
+    0x04: e('DOP', 0x04, 2, 3, 0, 'Z'),
+    0x14: e('DOP', 0x14, 2, 4, 0, 'ZX'),
+    0x34: e('DOP', 0x34, 2, 4, 0, 'ZX'),
+    0x44: e('DOP', 0x44, 2, 3, 0, 'Z'),
+    0x54: e('DOP', 0x54, 2, 4, 0, 'ZX'),
+    0x64: e('DOP', 0x64, 2, 3, 0, 'Z'),
+    0x74: e('DOP', 0x74, 2, 4, 0, 'ZX'),
+    0x80: e('DOP', 0x80, 2, 2, 0, 'I'),
+    0x82: e('DOP', 0x82, 2, 2, 0, 'I'),
+    0x89: e('DOP', 0x89, 2, 2, 0, 'I'),
+    0xc2: e('DOP', 0xc2, 2, 2, 0, 'I'),
+    0xd4: e('DOP', 0xd4, 2, 4, 0, 'ZX'),
+    0xe2: e('DOP', 0xe2, 2, 2, 0, 'I'),
+    0xf4: e('DOP', 0xf4, 2, 4, 0, 'ZX'),
+
+    0xe7: e('ISC', 0xe7, 2, 5, 0, 'Z'),
+    0xf7: e('ISC', 0xf7, 2, 6, 0, 'ZX'),
+    0xef: e('ISC', 0xef, 2, 6, 0, 'A'),
+    0xff: e('ISC', 0xff, 2, 7, 0, 'AX'),
+    0xfb: e('ISC', 0xfb, 2, 7, 0, 'AY'),
+    0xe3: e('ISC', 0xe3, 2, 8, 0, 'IX'),
+    0xf3: e('ISC', 0xf3, 2, 8, 0, 'IY'),
+
+    0x02: e('KIL', 0x02, 1, 0, 0, 'IM'),
+    0x12: e('KIL', 0x12, 1, 0, 0, 'IM'),
+    0x22: e('KIL', 0x22, 1, 0, 0, 'IM'),
+    0x32: e('KIL', 0x32, 1, 0, 0, 'IM'),
+    0x42: e('KIL', 0x42, 1, 0, 0, 'IM'),
+    0x52: e('KIL', 0x52, 1, 0, 0, 'IM'),
+    0x62: e('KIL', 0x62, 1, 0, 0, 'IM'),
+    0x72: e('KIL', 0x72, 1, 0, 0, 'IM'),
+    0x92: e('KIL', 0x92, 1, 0, 0, 'IM'),
+    0xb2: e('KIL', 0xb2, 1, 0, 0, 'IM'),
+    0xd2: e('KIL', 0xd2, 1, 0, 0, 'IM'),
+    0xf2: e('KIL', 0xf2, 1, 0, 0, 'IM'),
+
+    0xbb: e('LAR', 0xbb, 3, 4, 1, 'AY'),
+
+    0xa7: e('LAX', 0xa7, 2, 3, 0, 'Z'),
+    0xb7: e('LAX', 0xb7, 2, 4, 0, 'ZY'),
+    0xaf: e('LAX', 0xaf, 3, 4, 0, 'A'),
+    0xbf: e('LAX', 0xbf, 3, 4, 1, 'AY'),
+    0xa3: e('LAX', 0xa3, 2, 6, 0, 'IX'),
+    0xb3: e('LAX', 0xb3, 2, 5, 1, 'IY'),
+
+    0x1a: e('NOP', 0x1a, 1, 2, 0, 'IM'),
+    0x3a: e('NOP', 0x3a, 1, 2, 0, 'IM'),
+    0x5a: e('NOP', 0x5a, 1, 2, 0, 'IM'),
+    0x7a: e('NOP', 0x7a, 1, 2, 0, 'IM'),
+    0xda: e('NOP', 0xda, 1, 2, 0, 'IM'),
+    0xfa: e('NOP', 0xfa, 1, 2, 0, 'IM'),
+
+    0x27: e('RLA', 0x27, 2, 5, 0, 'Z'),
+    0x37: e('RLA', 0x37, 2, 6, 0, 'ZX'),
+    0x2f: e('RLA', 0x2f, 3, 6, 0, 'A'),
+    0x3f: e('RLA', 0x3f, 3, 7, 0, 'AX'),
+    0x3b: e('RLA', 0x3b, 3, 7, 0, 'AY'),
+    0x23: e('RLA', 0x23, 2, 8, 0, 'IX'),
+    0x33: e('RLA', 0x33, 2, 8, 0, 'IY'),
+
+    0x67: e('RRA', 0x67, 2, 5, 0, 'Z'),
+    0x77: e('RRA', 0x77, 2, 6, 0, 'ZX'),
+    0x6f: e('RRA', 0x6f, 3, 6, 0, 'A'),
+    0x7f: e('RRA', 0x7f, 3, 7, 0, 'AX'),
+    0x7b: e('RRA', 0x7b, 3, 7, 0, 'AY'),
+    0x63: e('RRA', 0x63, 2, 8, 0, 'IX'),
+    0x73: e('RRA', 0x73, 2, 8, 0, 'IY'),
+
+    0xeb: e('SBC', 0xeb, 2, 2, 0, 'I'),
+
+    0x07: e('SLO', 0x07, 2, 5, 0, 'Z'),
+    0x17: e('SLO', 0x17, 2, 6, 0, 'ZX'),
+    0x0f: e('SLO', 0x0f, 3, 6, 0, 'A'),
+    0x1f: e('SLO', 0x1f, 3, 7, 0, 'AX'),
+    0x1b: e('SLO', 0x1b, 3, 7, 0, 'AY'),
+    0x03: e('SLO', 0x03, 2, 8, 0, 'IX'),
+    0x13: e('SLO', 0x13, 2, 8, 0, 'IY'),
+
+    0x47: e('SRE', 0x47, 2, 5, 0, 'Z'),
+    0x57: e('SRE', 0x57, 2, 6, 0, 'ZX'),
+    0x4f: e('SRE', 0x4f, 3, 6, 0, 'A'),
+    0x5f: e('SRE', 0x5f, 3, 7, 0, 'AX'),
+    0x5b: e('SRE', 0x5b, 3, 7, 0, 'AY'),
+    0x43: e('SRE', 0x43, 2, 8, 0, 'IX'),
+    0x53: e('SRE', 0x53, 2, 8, 0, 'IY'),
+
+    0x9e: e('SXA', 0x9e, 3, 5, 0, 'AY'),
+
+    0x9c: e('SYA', 0x9c, 3, 5, 0, 'AX'),
+
+    0x0c: e('TOP', 0x0c, 3, 4, 0, 'A'),
+    0x1c: e('TOP', 0x1c, 3, 4, 1, 'AX'),
+    0x3c: e('TOP', 0x3c, 3, 4, 1, 'AX'),
+    0x5c: e('TOP', 0x5c, 3, 4, 1, 'AX'),
+    0x7c: e('TOP', 0x7c, 3, 4, 1, 'AX'),
+    0xdc: e('TOP', 0xdc, 3, 4, 1, 'AX'),
+    0xfc: e('TOP', 0xfc, 3, 4, 1, 'AX'),
+
+    0x8b: e('XAA', 0x8b, 2, 2, 0, 'IM'),
+
+    0x9b: e('XAS', 0x9b, 3, 5, 0, 'AY'),
 } as {
     [opc: number]: {
         name: string,

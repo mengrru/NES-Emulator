@@ -1,4 +1,4 @@
-import { ADDRMODE, PS, ICPU, AddressingRes } from './cpu'
+import { ADDRMODE, PS, ICPU, AddressingRes } from './cpu.d'
 import { int8, uint16, isCorssPage } from './utils'
 
 const setFlag = {

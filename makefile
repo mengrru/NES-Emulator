@@ -7,5 +7,7 @@ clean:
 
 run:
 	make clean && make build && http-server -p 3006 build/
+
+.PHONY: test
 test:
 	npm run test

@@ -1,18 +1,22 @@
+import Bus from '../bus'
 import { AddressingMode } from './addressing-mode'
 import { PS, REG, ICPU, BYTE } from './cpu.d'
 import { Instructions } from './instructions'
 import Opcode from './opcode'
+import { to16 } from './utils'
 
 export default class CPU implements ICPU{
     Register: REG
     PS: PS
-    Memory: number[]
     memoryMap: any
-    timeout: NodeJS.Timeout
-    runningCallback: () => void = () => {}
-    constructor (memoryMap: any, bus?: any) {
-        this.Memory = Array(0xffff + 1).fill(0)
+    clockCycle: number
+    bus: Bus
+    subClockCycleHandler: (cur: number) => void
+    constructor (memoryMap: any, bus: any) {
+        this.bus = bus
         this.memoryMap = memoryMap
+        this.clockCycle = 0
+
         this.PS = {
             C: 0,
             Z: 0,
@@ -51,64 +55,35 @@ export default class CPU implements ICPU{
             }
         }
     }
-    registerRunningCallback (fn: () => void) {
-        this.runningCallback = fn
-    }
-    test_loadPRGROM (program: BYTE[]) {
-        let cur = this.memoryMap.ADDR_SPACE.PRG_ROM_START
-        for (let i = 0; i < program.length; i++) {
-            this.Memory[cur] = program[i]
-            cur++
-        }
-        // store #0x8000 to 0xfffc
-        this.memWrite(
-            this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN,
-            this.memoryMap.ADDR_SPACE.PRG_ROM_START, 2
+
+    step () {
+        /**
+         * if you want to run nestest.nes and get logs,
+         * fetch registers and cycles before instruction running
+         */
+        const pc = this.Register.PC
+        const registerInfo = 
+            `   A:${to16(this.Register.A)} X:${to16(this.Register.X)} Y:${to16(this.Register.Y)}` +
+            ` P:${to16(this.Register.PS)} SP:${to16(this.Register.SP)}` +
+            ` CYC:${this.clockCycle}`
+
+        const { opcInfo, arg } = this.resolveAStatement()
+        const addrRes = AddressingMode[opcInfo.mode](this, arg)
+        const cycle = (opcInfo.cycles + Instructions[opcInfo.name](this, opcInfo.mode, addrRes))
+        this.takeCycles(cycle)
+
+        console.log(
+            `${to16(pc)} ${to16(opcInfo.opcode)} ${to16(arg)}` + 
+            `   ${opcInfo.name} ${to16(addrRes.addr === -1 ? addrRes.data : addrRes.addr)}` +
+            registerInfo
         )
     }
-    test_runProgram (program: BYTE[]) {
-        this.test_loadPRGROM(program)
-        this.IR_RESET()
-        this.run(program)
-    }
-    run (program: number[]) {
-        this.timeout = setInterval(() => {
-            const { ADDR_SPACE } = this.memoryMap
-            if (this.Register.PC === ADDR_SPACE.PRG_ROM_END ||
-                this.Register.PC === 0 ||
-                (this.Register.PC - ADDR_SPACE.PRG_ROM_START) === program.length ||
-                this.memRead(this.Register.PC) === -1 ||
-                this.Register.PC === -1) {
-                return
-            }
-            for (let i = 0; i < 97; i++) {
-                // const cycles = this.execOnce()
-                this.execOnce()
-            }
-            this.runningCallback()
-        }, 15);
-    }
-    test_exec (num: number = 1) {
-        for (let i = 0; i < num; i++) {
-            this.execOnce()
-        }
-    }
-    execOnce (): number {
-        const { opcInfo, arg } = this.readAStatement()
-        // console.log(opcInfo.name + '[' + opcInfo.mode + ']' + arg.toString(16))
-        const addrRes = AddressingMode[opcInfo.mode](this, arg)
-        let cycles = opcInfo.cycles
-        cycles += Instructions[opcInfo.name](this, opcInfo.mode, addrRes)
-        return cycles
-    }
-    readAStatement () {
-        // console.log('PC', this.Register.PC.toString(16))
+
+    resolveAStatement () {
         const opcode = this.readByteByPC()
-        // console.log(opcode)
         const opcInfo = Opcode[opcode]
         if (!opcInfo) {
-            clearInterval(this.timeout)
-            throw new Error('opcode ' + opcode + ' is not exist.')
+            throw new Error(`opcode ${opcode.toString(16)} is not exist. PC: ${(this.Register.PC - 1).toString(16)}`)
         }
         let arg = 0
         let i = 0
@@ -117,70 +92,110 @@ export default class CPU implements ICPU{
             arg |= (operand << (i * 8))
             i++
         }
+        if (isNaN(arg)) {
+            throw new Error(`argument ${arg} is not a number. opcode: ${opcode} addrmode: ${opcInfo.mode}`)
+        }
         return {
             opcInfo,
             arg
         }
     }
+
     readByteByPC (): BYTE {
-        const data = this.memRead(this.Register.PC)
-        this.Register.PC++
-        return data
+        return this.memRead(this.Register.PC++)
     }
-    /**
-     * reset interrupt: 
-     * 1. reset the state (register and flags)
-     * 2. set PC to the 16-bit address that stored at 0xfffc
-    */
+
+    takeCycles (num = 1) {
+        for (let i = 0; i < num; i++) {
+            this.clockCycle++
+            if (typeof this.subClockCycleHandler === 'function') {
+                this.subClockCycleHandler(this.clockCycle)
+            }
+        }
+    }
+
     IR_RESET () {
+        /**
+         * reset interrupt: 
+         * 1. reset the state (register and flags)
+         * 2. set PC to the 16-bit address that stored at 0xfffc
+        */
         this.Register.A = 0
         this.Register.X = 0
         this.Register.Y = 0
-        this.Register.PS = 0
         // ?
-        this.PS.B = 0b11
-        this.Register.PC = this.memRead(this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN, 2)
+        this.Register.PS = 0
+        // reference https://stackoverflow.com/questions/16913423/why-is-the-initial-state-of-the-interrupt-flag-of-the-6502-a-1
+        this.PS.I = 1
+        // ?
+        // this.PS.B = 0b11
+        this.PS.B = 0b10
+        // reference https://www.pagetable.com/?p=410
+        this.Register.SP = 0xfd
+
+        // for test
+        this.Register.PC = 0xc000 // this.memRead(this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN, 2)
+
+        this.takeCycles(7)
+
+        console.log('PC from $fffc: ' + to16(this.Register.PC))
+        console.log(`$fffc:${to16(this.memRead(0xfffc))} $fffd:${to16(this.memRead(0xfffd))}`)
+        console.log(`$fffa:${to16(this.memRead(0xfffa))} $fffb:${to16(this.memRead(0xfffb))}`)
+        console.log(`$fffe:${to16(this.memRead(0xfffe))} $ffff:${to16(this.memRead(0xffff))}`)
+        console.log(`$c000:${to16(this.memRead(0xc000))} $c001:${to16(this.memRead(0xc001))}`)
+        console.log(`$c002:${to16(this.memRead(0xc002))}`)
     }
+
     push8 (value: number) {
-        // The CPU does not detect if the stack is overflowed
-        // by excessive pushing or pulling operations
-        // and will most likely result in the program crashing.
+        /**
+         * The CPU does not detect if the stack is overflowed
+         * by excessive pushing or pulling operations
+         * and will most likely result in the program crashing.
+         */
+        if (this.Register.SP < 0) {
+            throw new Error('Stack overflow')
+        }
         this.memWrite(this.Register.SP + 0x100, value)
         this.Register.SP--
     }
+
     push16 (value: number) {
         const low8 = value & 0xff
         const high8 = (value >> 8) & 0xff
         this.push8(high8)
         this.push8(low8)
-        // console.log('push16:' + this.Register.SP)
     }
+
     pull8 () {
+        if (this.Register.SP === 0xff) {
+            throw new Error('Invalid pull')
+        }
         this.Register.SP++
         const res = this.memRead(this.Register.SP + 0x100)
         return res
     }
+
     pull16 () {
         const low8 = this.pull8()
         const high8 = this.pull8()
-        // console.log('pull16:' + this.Register.SP)
         return low8 | (high8 << 8)
     }
+
     memWrite (addr: number, value: number, byteNum: number = 1) {
         if (byteNum === 1) {
-            this.Memory[addr] = value
+            this.bus.memWrite8(addr, value)
         } else if (byteNum === 2) {
-            this.Memory[addr] = value & 0xff
-            this.Memory[addr + 1] = value >> 8
+            this.bus.memWrite16(addr, value)
         } else {
             throw new Error('value written in memory is too large.')
         }
     }
+
     memRead (addr: number, byteNum: number = 1) {
         if (byteNum === 1) {
-            return this.Memory[addr]
+            return this.bus.memRead8(addr)
         } else if (byteNum === 2) {
-            return (this.Memory[addr + 1] << 8) | this.Memory[addr]
+            return this.bus.memRead16(addr)
         } else {
             throw new Error('the number of byte should not large than 2.')
         }

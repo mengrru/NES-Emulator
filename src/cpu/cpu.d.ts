@@ -1,3 +1,5 @@
+import Bus from "../bus"
+
 export type OPERAND = number // 8bit
 export type ADDR = number // 16bit
 export type ZADDR = number // 8bit
@@ -64,8 +66,11 @@ export type PS = {
 export interface ICPU {
     Register: REG
     PS: PS
-    Memory: number[]
+    bus: Bus
     memoryMap: any
+    clockCycle: number
+    subClockCycleHandler: (cur: number) => void
+    step: () => void
     push8: (value: number) => void
     push16: (value: number) => void
     pull8: () => UINT8
