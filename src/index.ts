@@ -13,9 +13,12 @@ loadROM('./cartridges/nestest.nes', (buffer) => {
     const cpu = new CPU(NESCPUMap, new Bus(cdata))
     const cpuRunner = cpuRunningHelper(cpu)
 
+    /*
     document.getElementById('step-btn').onclick = function () {
         cpuRunner.exec()
     }
+    */
+   cpuRunner.launchWithLog()
 })
 /****/
 

@@ -31,5 +31,5 @@ export interface MemoryMap {
         PPU_REG_START?: ADDR,
         PPU_REG_END?: ADDR,
     },
-    SPEC_ADDR: any
+    IR: any
 }

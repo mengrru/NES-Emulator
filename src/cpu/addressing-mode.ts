@@ -1,4 +1,5 @@
 import { OPERAND, ADDR, ZADDR, ADDRMODE, ICPU } from './cpu.d'
+import { isCrossPage } from './utils'
 
 /**
  * input: opcode arg: number, Register

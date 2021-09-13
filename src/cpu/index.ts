@@ -56,27 +56,34 @@ export default class CPU implements ICPU{
         }
     }
 
-    step () {
+    step (): any {
         /**
-         * if you want to run nestest.nes and get logs,
+         * if you want to run nestest.nes and gather logs,
          * fetch registers and cycles before instruction running
+         * 
+         * nestest log: https://www.qmtpro.com/~nes/misc/nestest.log
          */
-        const pc = this.Register.PC
-        const registerInfo = 
-            `   A:${to16(this.Register.A)} X:${to16(this.Register.X)} Y:${to16(this.Register.Y)}` +
-            ` P:${to16(this.Register.PS)} SP:${to16(this.Register.SP)}` +
-            ` CYC:${this.clockCycle}`
+        const snapshot = {
+            PC: to16(this.Register.PC),
+            A: to16(this.Register.A),
+            X: to16(this.Register.X),
+            Y: to16(this.Register.Y),
+            P: to16(this.Register.PS),
+            SP: to16(this.Register.SP),
+            CYC: this.clockCycle
+        }
 
         const { opcInfo, arg } = this.resolveAStatement()
         const addrRes = AddressingMode[opcInfo.mode](this, arg)
         const cycle = (opcInfo.cycles + Instructions[opcInfo.name](this, opcInfo.mode, addrRes))
         this.takeCycles(cycle)
 
-        console.log(
-            `${to16(pc)} ${to16(opcInfo.opcode)} ${to16(arg)}` + 
-            `   ${opcInfo.name} ${to16(addrRes.addr === -1 ? addrRes.data : addrRes.addr)}` +
-            registerInfo
-        )
+        return {
+            ...snapshot,
+            opcInfo,
+            arg,
+            addrRes
+        }
     }
 
     resolveAStatement () {
@@ -133,17 +140,9 @@ export default class CPU implements ICPU{
         // reference https://www.pagetable.com/?p=410
         this.Register.SP = 0xfd
 
-        // for test
-        this.Register.PC = 0xc000 // this.memRead(this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN, 2)
+        this.Register.PC = this.memRead(this.memoryMap.IR.RESET, 2)
 
         this.takeCycles(7)
-
-        console.log('PC from $fffc: ' + to16(this.Register.PC))
-        console.log(`$fffc:${to16(this.memRead(0xfffc))} $fffd:${to16(this.memRead(0xfffd))}`)
-        console.log(`$fffa:${to16(this.memRead(0xfffa))} $fffb:${to16(this.memRead(0xfffb))}`)
-        console.log(`$fffe:${to16(this.memRead(0xfffe))} $ffff:${to16(this.memRead(0xffff))}`)
-        console.log(`$c000:${to16(this.memRead(0xc000))} $c001:${to16(this.memRead(0xc001))}`)
-        console.log(`$c002:${to16(this.memRead(0xc002))}`)
     }
 
     push8 (value: number) {

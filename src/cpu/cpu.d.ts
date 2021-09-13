@@ -70,7 +70,7 @@ export interface ICPU {
     memoryMap: any
     clockCycle: number
     subClockCycleHandler: (cur: number) => void
-    step: () => void
+    step: () => any
     push8: (value: number) => void
     push16: (value: number) => void
     pull8: () => UINT8

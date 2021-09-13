@@ -54,14 +54,6 @@ export default class Bus {
         this.memory = Array(0xffff + 1).fill(0)
         this.rom = rom
         this.PRGROMLen = rom.PRGROM.length
-
-        this.init()
-    }
-    private init () {
-        this.memWrite16(
-            NESCPUMap.SPEC_ADDR.RESET_PC_STORED_IN,
-            PRG_ROM_START
-        )
     }
     memWrite8 (addr: number, value: number) {
         this.memory[Addr(addr)] = value
@@ -77,10 +69,6 @@ export default class Bus {
     }
     memWrite16 (addr: number, value: number) {
         addr = Addr(addr)
-        if (addr >= 0x2000) {
-        // 在期望中，只有在地址 0~0x2000 上才会一次性写入 16 位数据
-            // console.warn(addr.toString(16))
-        }
         this.memory[addr] = value & 0xff
         if (addr <= Max(addr)) {
             this.memory[addr + 1] = value >> 8
@@ -88,9 +76,9 @@ export default class Bus {
     }
     memRead16 (addr: number) {
         addr = Addr(addr)
-        if (addr >= 0x2000) {
-        // 在期望中，只有在地址 0~0x2000 上才会一次性读取 16 位数据
-            // console.warn(addr.toString(16))
+        switch (true) {
+            case addr === NESCPUMap.IR.RESET:
+                return this.rom.PRGROM.length === 0x4000 ? 0xc000 : 0x8000
         }
         if (addr + 1 <= Max(addr)) {
             return (this.memRead8(addr + 1) << 8) | this.memRead8(addr)

@@ -21,7 +21,7 @@ export default class Bus {
         }
         // store #0x8000 to 0xfffc
         this.memWrite16(
-            this.memoryMap.SPEC_ADDR.RESET_PC_STORED_IN,
+            this.memoryMap.IR.RESET,
             this.memoryMap.ADDR_SPACE.PRG_ROM_START
         )
     }
