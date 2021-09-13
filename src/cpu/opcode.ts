@@ -121,6 +121,8 @@ export default {
     0xa2: e('LDX', 0xa2, 2, 2, 0, 'I'),
     0xa6: e('LDX', 0xa6, 2, 3, 0, 'Z'),
     0xb6: e('LDX', 0xb6, 2, 4, 0, 'ZY'),
+    0xae: e('LDX', 0xae, 3, 4, 0, 'A'),
+    0xbe: e('LDX', 0xbe, 3, 4, 1, 'AY'),
 
     0xa0: e('LDY', 0xa0, 2, 2, 0, 'I'),
     0xa4: e('LDY', 0xa4, 2, 3, 0, 'Z'),

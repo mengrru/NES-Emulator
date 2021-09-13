@@ -1,3 +1,4 @@
+import Logger from '../logger'
 import { INT8, UINT8, UINT16, ICPU } from './cpu.d'
 
 // little-endian
@@ -24,8 +25,8 @@ export function uint16(value: number): UINT16 {
 export function page(value: number): number {
     return (value & 0xff00) >> 8
 }
-export function isCorssPage (addr1: UINT16, addr2: UINT16): boolean {
-    return (addr1 & 0xff00) !== (addr2 & 0xff00)
+export function isCrossPage (addr1: UINT16, addr2: UINT16): number {
+    return (addr1 & 0xff00) !== (addr2 & 0xff00) ? 1 : 0
 }
 export function to16 (n: number): string {
     return n.toString(16)
@@ -38,7 +39,7 @@ export function cpuRunningHelper (cpu: ICPU) {
         const { ADDR_SPACE } = cpu.memoryMap
         if (cpu.Register.PC === ADDR_SPACE.PRG_ROM_END ||
             cpu.Register.PC === 0 ||
-            (cpu.Register.PC - ADDR_SPACE.PRG_ROM_START) === cpu.bus.PRGROMLen ||
+            // (cpu.Register.PC - ADDR_SPACE.PRG_ROM_START) === cpu.bus.PRGROMLen ||
             cpu.memRead(cpu.Register.PC) === -1 ||
             cpu.Register.PC === -1) {
             return true
@@ -57,7 +58,12 @@ export function cpuRunningHelper (cpu: ICPU) {
     return {
         exec (num: number = 1) {
             for (let i = 0; i < num; i++) {
-                cpu.step()
+                const s = cpu.step()
+                Logger.screen(
+                    `${to16(s.PC)} ${to16(s.opcInfo.opcode)} ${to16(s.arg)}` + 
+                    `   ${s.opcInfo.name} ${to16(s.addrRes.addr === -1 ? s.addrRes.data : s.addrRes.addr)}` +
+                    `   A:${s.A} X:${s.X} Y:${s.Y} P:${s.P} SP:${s.SP} CYC:${s.CYC}`
+                )
             }
         },
         launch (done?: () => void) {
@@ -73,6 +79,28 @@ export function cpuRunningHelper (cpu: ICPU) {
                     }
                     try {
                         cpu.step()
+                    } catch (e) {
+                        clearInterval(timeout)
+                        throw e
+                    }
+                }
+            }, 15);
+        },
+        launchWithLog () {
+            cpu.IR_RESET()
+            timeout = setInterval(() => {
+                for (let i = 0; i < 97; i++) {
+                    if (shouldStop()) {
+                        clearInterval(timeout)
+                        return
+                    }
+                    try {
+                        const s = cpu.step()
+                        Logger.screen(
+                            `${to16(s.PC)} ${to16(s.opcInfo.opcode)} ${to16(s.arg)}` + 
+                            `   ${s.opcInfo.name} ${to16(s.addrRes.addr === -1 ? s.addrRes.data : s.addrRes.addr)}` +
+                            `   A:${s.A} X:${s.X} Y:${s.Y} P:${s.P} SP:${s.SP} CYC:${s.CYC}`
+                        )
                     } catch (e) {
                         clearInterval(timeout)
                         throw e

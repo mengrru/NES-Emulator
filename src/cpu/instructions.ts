@@ -1,5 +1,5 @@
 import { ADDRMODE, PS, ICPU, AddressingRes } from './cpu.d'
-import { int8, uint16, isCorssPage } from './utils'
+import { int8, uint16, isCrossPage } from './utils'
 
 const setFlag = {
     C: function (PS: PS, value: boolean) {
@@ -55,12 +55,20 @@ export const Instructions = {
         setFlag.C(cpu.PS, res > 0xff)
         setFlag.N(cpu.PS, cpu.Register.A)
         setFlag.V(cpu.PS, cpu.Register.A, data, res & 0xff)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
     'SBC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         addrRes.data = ((~addrRes.data) & 0xff)// + 1
         Instructions.ADC(cpu, mode, addrRes)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -71,6 +79,10 @@ export const Instructions = {
 
         setFlag.Z(cpu.PS, cpu.Register.A)
         setFlag.N(cpu.PS, cpu.Register.A)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -95,7 +107,7 @@ export const Instructions = {
         if (cpu.PS.C === 0) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -110,7 +122,7 @@ export const Instructions = {
         if (cpu.PS.C === 1) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -125,7 +137,7 @@ export const Instructions = {
         if (cpu.PS.Z === 1) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -148,7 +160,7 @@ export const Instructions = {
         if (cpu.PS.N === 1) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -163,7 +175,7 @@ export const Instructions = {
         if (cpu.PS.Z === 0) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -178,7 +190,7 @@ export const Instructions = {
         if (cpu.PS.N === 0) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -204,7 +216,7 @@ export const Instructions = {
         if (cpu.PS.V === 0) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -219,7 +231,7 @@ export const Instructions = {
         if (cpu.PS.V === 1) {
             const res = uint16(cpu.Register.PC + int8(data))
             cpu.Register.PC = res
-            if (isCorssPage(cpu.Register.PC, oldPC)) {
+            if (isCrossPage(cpu.Register.PC, oldPC)) {
                 return 2
             } else {
                 return 1
@@ -254,6 +266,10 @@ export const Instructions = {
         setFlag.C(cpu.PS, r >= data)
         setFlag.Z(cpu.PS, r - data)
         setFlag.N(cpu.PS, r - data)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -331,6 +347,10 @@ export const Instructions = {
         cpu.Register.A = res
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -358,6 +378,10 @@ export const Instructions = {
         cpu.Register.A = data
         setFlag.Z(cpu.PS, cpu.Register.A)
         setFlag.N(cpu.PS, cpu.Register.A)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -366,6 +390,10 @@ export const Instructions = {
         cpu.Register.X = data
         setFlag.Z(cpu.PS, cpu.Register.X)
         setFlag.N(cpu.PS, cpu.Register.X)
+
+        if (mode === 'AY') {
+            return 1
+        }
         return 0
     },
 
@@ -374,6 +402,10 @@ export const Instructions = {
         cpu.Register.Y = data
         setFlag.Z(cpu.PS, cpu.Register.Y)
         setFlag.N(cpu.PS, cpu.Register.Y)
+
+        if (mode === 'AX') {
+            return 1
+        }
         return 0
     },
 
@@ -401,6 +433,10 @@ export const Instructions = {
         cpu.Register.A = res
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
+
+        if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
+            return 1
+        }
         return 0
     },
 
@@ -542,7 +578,162 @@ export const Instructions = {
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
         return 0
-    }
+    },
+
+    /* unofficial */
+    'AAC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.AND(cpu, mode, addrRes)
+        if (cpu.Register.A >> 7 !== 0) {
+            setFlag.C(cpu.PS, true)
+        }
+        return 0
+    },
+
+    'AAX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        const res = cpu.Register.X & cpu.Register.A
+        cpu.memWrite(addrRes.addr, res)
+        setFlag.Z(cpu.PS, res)
+        setFlag.N(cpu.PS, res)
+        return 0
+    },
+
+    'ARR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.AND(cpu, 'I', addrRes)
+        Instructions.ROR(cpu, 'AC', { addr: -1, data: cpu.Register.A})
+        const bit5 = (cpu.Register.A >> 4) & 1
+        const bit6 = (cpu.Register.A >> 5) & 1
+        setFlag.C(cpu.PS, bit6 === 1)
+        cpu.PS.V = bit5 ^ bit6
+        return 0
+    },
+
+    'ASR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.AND(cpu, mode, addrRes)
+        Instructions.LSR(cpu, 'AC', { addr: -1, data: cpu.Register.A })
+        return 0
+    },
+
+    'ATX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        const res = cpu.Register.A & addrRes.data
+        cpu.Register.A = res
+        cpu.Register.X = res
+        setFlag.Z(cpu.PS, res)
+        setFlag.N(cpu.PS, res)
+        return 0
+    },
+
+    'AXA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        const res = cpu.Register.X & cpu.Register.A
+        cpu.Register.A = res
+        cpu.memWrite(addrRes.addr, res & 7)
+        return 0
+    },
+
+    'AXS': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.STX(cpu, mode, addrRes)
+        Instructions.PHA(cpu, mode, addrRes)
+        Instructions.AND(cpu, mode, addrRes)
+        Instructions.STA(cpu, mode, addrRes)
+        Instructions.PLA(cpu, mode, addrRes)
+        return 0
+    },
+
+    'DCP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.DEC(cpu, mode, addrRes)
+        Instructions.CMP(cpu, mode, addrRes)
+        return 0
+    },
+
+    'DOP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.NOP(cpu, mode, addrRes)
+        Instructions.NOP(cpu, mode, addrRes)
+        return 0
+    },
+
+    'ISC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.INC(cpu, mode, addrRes)
+        Instructions.SBC(cpu, mode, addrRes)
+        return 0
+    },
+
+    'KIL': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        // stop program counter (processor lock up)
+        throw new Error('KIL(HLT) is executed. ')
+    },
+
+    /*
+    'LAR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        return 0
+    },
+    */
+
+    'LAX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        const res = addrRes.data
+        cpu.Register.A = res
+        cpu.Register.X = res
+        setFlag.Z(cpu.PS, res)
+        setFlag.N(cpu.PS, res)
+        if (mode === 'AY' || mode === 'IY') {
+            return 1
+        }
+        return 0
+    },
+
+    'RLA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.ROL(cpu, mode, addrRes)
+        Instructions.AND(cpu, mode, addrRes)
+        return 0
+    },
+
+    'RRA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.ROR(cpu, mode, addrRes)
+        Instructions.ADC(cpu, mode, addrRes)
+        return 0
+    },
+
+    'SLO': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.ASL(cpu, mode, addrRes)
+        Instructions.ORA(cpu, mode, addrRes)
+        return 0
+    },
+
+    'SRE': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.LSR(cpu, mode, addrRes)
+        Instructions.EOR(cpu, mode, addrRes)
+        return 0
+    },
+
+    /*
+    'SXA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        return 0
+    },
+
+    'SYA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        return 0
+    },
+    */
+
+    'TOP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.NOP(cpu, mode, addrRes)
+        Instructions.NOP(cpu, mode, addrRes)
+        Instructions.NOP(cpu, mode, addrRes)
+        if (mode === 'AX') {
+            return 1
+        }
+        return 0
+    },
+
+    'XAA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        Instructions.TXA(cpu, 'IM', addrRes)
+        Instructions.AND(cpu, mode, addrRes)
+        return 0
+    },
+
+    /*
+    'XAS': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
+        return 0
+    },
+    */
 
 } as {
     [instruction: string]: (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) => number
