@@ -1,6 +1,7 @@
 import Cartridge from "../cartridges";
 import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE } from "../public.def";
-import { NESCPUMap } from '../memory-map'
+import { NESCPUMap, PPUReg } from '../memory-map'
+import { PPU } from "../ppu";
 
 /**
  * cpu gets access to memory using three buses:
@@ -49,20 +50,48 @@ export default class Bus {
     PRGROMLen: number
     private rom: CartridgeResolvedData
     private memory: number[]
+    private ppu: PPU
 
     constructor (rom: CartridgeResolvedData) {
         this.memory = Array(0xffff + 1).fill(0)
         this.rom = rom
+        this.ppu = new PPU(rom)
         this.PRGROMLen = rom.PRGROM.length
     }
     memWrite8 (addr: number, value: number) {
+        addr = Addr(addr)
+        switch (addr) {
+            case PPUReg.Controller:
+                this.ppu.write.Controller(value)
+                return
+            case PPUReg.Address:
+                this.ppu.write.Address(value)
+                return
+            case PPUReg.Data:
+                this.ppu.write.Data(value)
+                return
+        }
+        if (addr >= PRG_ROM_START && addr <= PRG_ROM_END) {
+            console.warn(`invalid write addr ${addr}`)
+            return
+        }
         this.memory[Addr(addr)] = value
     }
     memRead8 (addr: number) {
         addr = Addr(addr)
         switch (true) {
+            case addr === PPUReg.Data:
+                return this.ppu.read.Data()
             case addr >= PRG_ROM_START && addr <= PRG_ROM_END:
                 return this.readPRGROM(addr - 0x8000)
+            case addr === PPUReg.Controller:
+            case addr === PPUReg.Mask:
+            case addr === PPUReg.OAM_Address:
+            case addr === PPUReg.Scroll:
+            case addr === PPUReg.Address:
+            case addr === PPUReg.OAM_DMA:
+                console.warn(`address ${addr} is write-only.`)
+                return
             default:
                 return this.memory[addr]
         }
@@ -76,8 +105,8 @@ export default class Bus {
     }
     memRead16 (addr: number) {
         addr = Addr(addr)
-        switch (true) {
-            case addr === NESCPUMap.IR.RESET:
+        switch (addr) {
+            case NESCPUMap.IR.RESET:
                 return this.rom.PRGROM.length === 0x4000 ? 0xc000 : 0x8000
         }
         if (addr + 1 <= Max(addr)) {

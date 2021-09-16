@@ -3,9 +3,12 @@ export default class Logger {
     }
 
     static screen (text: string) {
-        // const p = document.createElement('p')
-        // p.innerText = text
-        // document.getElementsByTagName('body')[0].appendChild(p)
+        const p = document.createElement('p')
+        p.innerText = text
+        document.getElementsByTagName('body')[0].appendChild(p)
+    }
+
+    static console (text: string) {
         console.log(text)
     }
 }

@@ -19,3 +19,33 @@ export const NESCPUMap: MemoryMap = {
         RESET: 0xfffc,
     }
 }
+
+export const NESPPUMap = {
+    ADDR_SPACE: {
+        CHR_ROM_START: 0x0,
+        CHR_ROM_END: 0x1fff,
+
+        VRAM_START: 0x2000,
+        VRAM_END: 0x3eff,
+
+        PALETTES_START: 0x3f00,
+        PALETTES_END: 0x3fff
+    },
+}
+
+export const PPUReg = {
+    Controller: 0x2000,
+    Mask: 0x2001,
+    // report PPU status
+    Status: 0x2002, // read-only
+    // OAM: Object Attribute Memory
+    // the space responsible for sprites
+    OAM_Address: 0x2003,
+    OAM_Data: 0x2004,
+    Scroll: 0x2005,
+    Address: 0x2006,
+    Data: 0x2007,
+    // Direct Memory Access
+    // for fast copying of 256 bytes from CPU RAM to OAM
+    OAM_DMA: 0x4014
+}

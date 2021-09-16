@@ -96,7 +96,7 @@ export function cpuRunningHelper (cpu: ICPU) {
                     }
                     try {
                         const s = cpu.step()
-                        Logger.screen(
+                        Logger.console(
                             `${to16(s.PC)} ${to16(s.opcInfo.opcode)} ${to16(s.arg)}` + 
                             `   ${s.opcInfo.name} ${to16(s.addrRes.addr === -1 ? s.addrRes.data : s.addrRes.addr)}` +
                             `   A:${s.A} X:${s.X} Y:${s.Y} P:${s.P} SP:${s.SP} CYC:${s.CYC}`
