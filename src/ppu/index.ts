@@ -1,6 +1,6 @@
-import { NESPPUMap } from "../memory-map"
+import { NESPPUMap, PPUReg } from "../memory-map"
 import { BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
-import { REG_Address, REG_Controller, REG_Mask, REG_Status } from "./registers"
+import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
 
 /**
  * Two communication channels exist between CPU and PPU:
@@ -37,37 +37,58 @@ export class PPU {
     regController = new REG_Controller()
     regMask = new REG_Mask()
     regStatus = new REG_Status()
+    regOAMAddress = new REG_OAMAddress()
+    regOAMData = new REG_OAMData()
+    regScroll = new REG_Scroll()
     regAddress = new REG_Address()
+    regData = new REG_Data()
+    regOAMDMA = new REG_OAMDMA()
+
     constructor (cartridgeData: CartridgeResolvedData) {
         this.CHRROM = cartridgeData.CHRROM
         this.mirroring = cartridgeData.screenMirroring
-
     }
 
+    // read/write to CPU
+    // all behavior is when CPU reads or writes
     get write () {
         const self = this
         return {
-            Controller (data: UINT8 | BIT, i: number = -1) {
+            [PPUReg.Controller] (data: UINT8 | BIT, i: number = -1) {
                 if (i === -1) {
                     self.regController.set(data)
                 } else {
                     self.regController.updateBit(i, data)
                 }
             },
-            Mask (data: UINT8 | BIT, i: number = -1) {
+            [PPUReg.Mask] (data: UINT8 | BIT, i: number = -1) {
+                self.regMask.set(data)
             },
-            OAMAddress (data: UINT8) {
+            [PPUReg.OAM_Address] (data: UINT8) {
+                self.regOAMAddress.set(data)
+                self.regOAMData.set(self.OAMRead(data))
             },
-            OAMData (data: UINT8) {
+            [PPUReg.OAM_Data] (data: UINT8) {
+                self.regOAMData.set(data)
+                self.OAMWrite(self.regOAMAddress.get(), data)
+                self.regOAMAddress.inc()
             },
-            Scroll (data: UINT8) {
+            [PPUReg.Scroll] (data: UINT8) {
+                self.regScroll.updateByte(data)
             },
-            Address (data: UINT8) {
+            [PPUReg.Address] (data: UINT8) {
                 self.regAddress.updateByte(data)
             },
-            Data (data: UINT8) {
+            [PPUReg.Data] (data: UINT8) {
+                self.regData.set(data)
+                self.memWrite(self.regAddress.get(), data)
+                self.regAddress.inc(self.regController.vramAddrInc())
             },
-            OAMDMA (data: UINT8) {
+            OAM_DMA (data: UINT8, page: UINT8[]) {
+                self.regOAMDMA.set(data)
+                if (page.length !== 0) {
+                    self.writePagetoOAM(page)
+                }
             }
         }
     }
@@ -75,18 +96,43 @@ export class PPU {
     get read () {
         const self = this
         return {
-            Status () {
+            [PPUReg.Status] () {
+                self.regAddress.reset()
+                return self.regStatus.get()
             },
-            OAMData () {
+            [PPUReg.OAM_Data] () {
+                return self.regOAMData.get()
             },
-            Data () {
+            [PPUReg.Data] () {
                 const addr = self.regAddress.get()
+                const data = self.memRead(addr)
+                self.regData.set(data)
                 // read or write access to 0x2007 increments the 0x2006
                 // the increment size is determined by the state of the Control register
                 self.regAddress.inc(self.regController.vramAddrInc())
-                return self.memRead(addr)
+                return self.regData.get()
             },
         }
+    }
+
+    private writePagetoOAM (page: UINT8[]) {
+        this.OAMData = page
+    }
+
+    private OAMRead (addr: UINT8): UINT8 {
+        return this.OAMData[addr]
+    }
+
+    private OAMWrite (addr: UINT8, data: UINT8) {
+        this.OAMData[addr] = data
+    }
+
+    private VRAMRead (addr: UINT16): UINT8 {
+        return this.VRAM[addr]
+    }
+
+    private VRAMWrite (addr: UINT16, data: UINT8) {
+        this.VRAM[addr] = data
     }
 
     private memRead (addr: UINT16) {
@@ -97,12 +143,25 @@ export class PPU {
                 this.internalBuf = this.CHRROM[addr]
                 return res
             case addr >= VRAM_START && addr <= VRAM_END:
-                this.internalBuf = this.VRAM[this.mirroringAddr(addr - VRAM_START)]
+                this.internalBuf = this.VRAMRead(this.mirroringAddr(addr - VRAM_START))
                 return res
             case addr >= PALETTES_START && addr <= PALETTES_END:
                 return this.paletteTable[addr - PALETTES_START]
             default:
                 throw new Error('invalid PPU memRead.')
+        }
+    }
+
+    private memWrite (addr: UINT16, data: UINT8) {
+        addr %= 0x4000
+        switch (true) {
+            case addr >= VRAM_START && addr <= VRAM_END:
+                return this.VRAMWrite(addr, data)
+            case addr >= PALETTES_START && addr <=PALETTES_END:
+                this.paletteTable[addr - PALETTES_START] = data
+                return
+            default:
+                throw new Error('invalid PPU memWrite.')
         }
     }
 

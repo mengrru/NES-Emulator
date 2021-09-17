@@ -23,6 +23,10 @@ class SingleWriteReg {
     get (): UINT8 {
         return this.value
     }
+    inc (n = 1) {
+        let sum = this.value + n
+        this.value = sum & 0xff
+    }
 }
 
 class DoubleWriteReg {
@@ -145,8 +149,36 @@ export class REG_OAMAddress extends SingleWriteReg {
     }
 }
 
+// 0x2004 read/write
+export class REG_OAMData extends SingleWriteReg {
+    constructor () {
+        super()
+    }
+}
+
+// 0x2005 write*2
+export class REG_Scroll extends DoubleWriteReg {
+    constructor () {
+        super()
+    }
+}
+
 // 0x2006 write*2
 export class REG_Address extends DoubleWriteReg {
+    constructor () {
+        super()
+    }
+}
+
+// 0x2007 read/write
+export class REG_Data extends SingleWriteReg {
+    constructor () {
+        super()
+    }
+}
+
+// 0x4014 write
+export class REG_OAMDMA extends SingleWriteReg {
     constructor () {
         super()
     }

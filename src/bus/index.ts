@@ -1,5 +1,5 @@
 import Cartridge from "../cartridges";
-import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE } from "../public.def";
+import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE, UINT8 } from "../public.def";
 import { NESCPUMap, PPUReg } from '../memory-map'
 import { PPU } from "../ppu";
 
@@ -62,36 +62,38 @@ export default class Bus {
         addr = Addr(addr)
         switch (addr) {
             case PPUReg.Controller:
-                this.ppu.write.Controller(value)
-                return
+            case PPUReg.Mask:
+            case PPUReg.OAM_Address:
+            case PPUReg.OAM_Data:
+            case PPUReg.Scroll:
             case PPUReg.Address:
-                this.ppu.write.Address(value)
-                return
             case PPUReg.Data:
-                this.ppu.write.Data(value)
+                this.ppu.write[addr](value)
+                return
+            case PPUReg.OAM_DMA:
+                this.ppu.write.OAM_DMA(value, this.readPage(value))
                 return
         }
         if (addr >= PRG_ROM_START && addr <= PRG_ROM_END) {
             console.warn(`invalid write addr ${addr}`)
             return
+        } else if (addr >= PPU_REG_START && addr <= PPU_REG_END) {
+            console.warn(`address ${addr} is read-only.`)
+            return
         }
         this.memory[Addr(addr)] = value
     }
-    memRead8 (addr: number) {
+    memRead8 (addr: number): UINT8 {
         addr = Addr(addr)
         switch (true) {
             case addr === PPUReg.Data:
-                return this.ppu.read.Data()
+            case addr === PPUReg.OAM_Data:
+            case addr === PPUReg.Status:
+                return this.ppu.read[addr]()
             case addr >= PRG_ROM_START && addr <= PRG_ROM_END:
                 return this.readPRGROM(addr - 0x8000)
-            case addr === PPUReg.Controller:
-            case addr === PPUReg.Mask:
-            case addr === PPUReg.OAM_Address:
-            case addr === PPUReg.Scroll:
-            case addr === PPUReg.Address:
-            case addr === PPUReg.OAM_DMA:
-                console.warn(`address ${addr} is write-only.`)
-                return
+            case addr >= PPU_REG_START && addr <= PPU_REG_END:
+                throw new Error(`address ${addr} is write-only.`)
             default:
                 return this.memory[addr]
         }
@@ -113,6 +115,16 @@ export default class Bus {
             return (this.memRead8(addr + 1) << 8) | this.memRead8(addr)
         } else {
             return this.memRead8(addr)
+        }
+    }
+    private readPage (hiAddr: UINT8): UINT8[] {
+        switch (true) {
+            case hiAddr >= 0 && hiAddr <= 0x1f:
+                return this.memory.slice(hiAddr << 8, (hiAddr + 1) << 8)
+            // other ram or rom todo.
+            default:
+                console.warn(`invalid read page addr ${hiAddr}`)
+                return []
         }
     }
     private readPRGROM (addr: number) {
