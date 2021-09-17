@@ -3,57 +3,22 @@ import { AddressingMode } from './addressing-mode'
 import { PS, REG, ICPU, BYTE } from './cpu.d'
 import { Instructions } from './instructions'
 import Opcode from './opcode'
+import { ProcessorStatus, Registers } from './registers'
 import { to16 } from './utils'
 
 export default class CPU implements ICPU{
+    clockCycle: number = 0
     Register: REG
     PS: PS
     memoryMap: any
-    clockCycle: number
     bus: Bus
     subClockCycleHandler: (cur: number) => void
+
     constructor (memoryMap: any, bus: any) {
         this.bus = bus
         this.memoryMap = memoryMap
-        this.clockCycle = 0
-
-        this.PS = {
-            C: 0,
-            Z: 0,
-            I: 0,
-            D: 0,
-            // ?
-            B: 0b11,
-            V: 0,
-            N: 0
-        }
-        const PS = this.PS
-        this.Register = {
-            PC: 0x0000,
-            // between 0x0100 and 0x01ff
-            SP: 0xff,
-            A: 0x00,
-            X: 0x00,
-            Y: 0x00,
-            get PS () {
-                return PS.C & 1 |
-                    (PS.Z << 1) & 2 |
-                    (PS.I << 2) & 4 |
-                    (PS.D << 3) & 8 |
-                    (PS.B << 4) & (16 + 32) |
-                    (PS.V << 6) & 64 |
-                    (PS.N << 7) & 128
-            },
-            set PS (v) {
-                PS.C = v & 1
-                PS.Z = (v & 2) >> 1
-                PS.I = (v & 4) >> 2
-                PS.D = (v & 8) >> 3
-                PS.B = (v & (16 + 32)) >> 4
-                PS.V = (v & 64) >> 5
-                PS.N = (v & 128) >> 6
-            }
-        }
+        this.PS = ProcessorStatus()
+        this.Register = Registers(this.PS)
     }
 
     step (): any {

@@ -1,47 +1,7 @@
 import { ADDRMODE, PS, ICPU, AddressingRes } from './cpu.d'
+import { setFlag } from './registers'
 import { int8, uint16, isCrossPage } from './utils'
 
-const setFlag = {
-    C: function (PS: PS, value: boolean) {
-        PS.C = value ? 1 : 0
-    },
-    Z: function (PS: PS, value: number) {
-        PS.Z = value === 0 ? 1 : 0
-    },
-    I:  function (PS: PS, value: number) {
-        PS.I = value
-    },
-    D:  function (PS: PS, value: number) {
-        PS.D = value
-    },
-    // 2-bits
-    // bit5, bit4
-    B:  function (PS: PS, action: string) {
-        const bit4 = (function (a: string) {
-            switch (a) {
-                case 'PHP':
-                case 'BRK':
-                    return 1
-                case 'IRQ':
-                case 'NMI':
-                    return 0
-            }
-            return 0
-        })(action)
-        const bit5 = 1
-        PS.B = (bit5 << 1) | bit4
-    },
-    V:  function (PS: PS, m: number, n: number, r: number) {
-        // ?
-        // overflow occurs if
-        // (m ^ r) & (n ^ r) & 0x80 is nonzero
-        const res = !!((m ^ r) & (n ^ r) & 0x80)
-        PS.V = res ? 1 : 0
-    },
-    N:  function (PS: PS, value: number) {
-        PS.N = (value & 128) >> 7
-    },
-}
 // Register Memory
 // return cycle
 export const Instructions = {
