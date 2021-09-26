@@ -215,8 +215,9 @@ export default {
     0x98: e('TYA', 0x98, 1, 2, 0, 'IM'),
 
     // https://www.nesdev.com/undocumented_opcodes.txt
+    // https://www.masswerk.at/6502/6502_instruction_set.html
     0x0b: e('AAC', 0x0b, 2, 2, 0, 'I'),
-    0x2b: e('ACC', 0x2b, 2, 2, 0, 'I'),
+    0x2b: e('AAC', 0x2b, 2, 2, 0, 'I'),
 
     0x87: e('AAX', 0x87, 2, 3, 0, 'Z'),
     0x97: e('AAX', 0x97, 2, 4, 0, 'ZY'),
@@ -259,9 +260,9 @@ export default {
 
     0xe7: e('ISC', 0xe7, 2, 5, 0, 'Z'),
     0xf7: e('ISC', 0xf7, 2, 6, 0, 'ZX'),
-    0xef: e('ISC', 0xef, 2, 6, 0, 'A'),
-    0xff: e('ISC', 0xff, 2, 7, 0, 'AX'),
-    0xfb: e('ISC', 0xfb, 2, 7, 0, 'AY'),
+    0xef: e('ISC', 0xef, 3, 6, 0, 'A'),
+    0xff: e('ISC', 0xff, 3, 7, 0, 'AX'),
+    0xfb: e('ISC', 0xfb, 3, 7, 0, 'AY'),
     0xe3: e('ISC', 0xe3, 2, 8, 0, 'IX'),
     0xf3: e('ISC', 0xf3, 2, 8, 0, 'IY'),
 

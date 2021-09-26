@@ -1,7 +1,7 @@
 import Cartridge from "../cartridges";
 import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE, UINT8 } from "../public.def";
 import { NESCPUMap, PPUReg } from '../memory-map'
-import { PPU } from "../ppu";
+import { PPU } from "../ppu/index";
 
 /**
  * cpu gets access to memory using three buses:
@@ -34,12 +34,31 @@ function Addr (addr: ADDR) {
 }
 function Max (addr: ADDR) {
     switch (true) {
+        case addr <= 0xff:
+            return 0xff
         case addr <= CPU_RAM_END:
             return CPU_ADDRESS_MASK // 0x07ff
         case addr <= PPU_REG_END:
             return PPU_REGISTER_MASK // 0x2007
         case addr >= PRG_ROM_START:
             return PRG_ROM_END
+        default:
+            console.warn('不在范围内的地址' + addr)
+            return 0x7fff
+    }
+}
+
+function Min (addr: ADDR) {
+    switch (true) {
+        // https://atariage.com/forums/topic/72382-6502-indirect-addressing-ff-behavior/
+        case addr <= 0xff:
+            return 0
+        case addr <= CPU_RAM_END:
+            return CPU_RAM_START // 0
+        case addr <= PPU_REG_END:
+            return PPU_REG_START // 0x2000
+        case addr >= PRG_ROM_START:
+            return PRG_ROM_START
         default:
             console.warn('不在范围内的地址' + addr)
             return 0x7fff
@@ -75,7 +94,7 @@ export default class Bus {
                 return
         }
         if (addr >= PRG_ROM_START && addr <= PRG_ROM_END) {
-            console.warn(`invalid write addr ${addr}`)
+            console.warn(`invalid write addr ${addr} on PRG_ROM`)
             return
         } else if (addr >= PPU_REG_START && addr <= PPU_REG_END) {
             console.warn(`address ${addr} is read-only.`)
@@ -114,7 +133,7 @@ export default class Bus {
         if (addr + 1 <= Max(addr)) {
             return (this.memRead8(addr + 1) << 8) | this.memRead8(addr)
         } else {
-            return this.memRead8(addr)
+            return (this.memRead8(Min(addr)) << 8) | this.memRead8(addr)
         }
     }
     private readPage (hiAddr: UINT8): UINT8[] {

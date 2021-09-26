@@ -3,8 +3,8 @@ export default class Logger {
     }
 
     static screen (text: string) {
-        const p = document.createElement('p')
-        p.innerText = text
+        const p = document.createElement('span')
+        p.innerText = text + '\n'
         document.getElementsByTagName('body')[0].appendChild(p)
     }
 

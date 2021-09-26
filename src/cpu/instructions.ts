@@ -8,26 +8,36 @@ export const Instructions = {
     'ADC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         // const data = AddressingMode[mode](cpu, arg)
         const { data } = addrRes
-        const res = cpu.PS.C + data + cpu.Register.A
+        const a = cpu.Register.A
+        const b = data
+        const c = cpu.PS.C
+        const res = a + b + c
         cpu.Register.A = res & 0xff
 
         setFlag.Z(cpu.PS, cpu.Register.A)
         setFlag.C(cpu.PS, res > 0xff)
         setFlag.N(cpu.PS, cpu.Register.A)
-        setFlag.V(cpu.PS, cpu.Register.A, data, res & 0xff)
+        // setFlag.V(cpu.PS, a, data + cpu.PS.C, res & 0xff)
+
+        if (a < 128 && b < 128) {
+            cpu.PS.V = cpu.Register.A < 128 ? 0 : 1
+        } else if (a >= 128 && b >= 128) {
+            cpu.PS.V = cpu.Register.A < 128 ? 1 : 0
+        } else {
+            cpu.PS.V = 0
+        }
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
 
     'SBC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        addrRes.data = ((~addrRes.data) & 0xff)// + 1
-        Instructions.ADC(cpu, mode, addrRes)
+        Instructions.ADC(cpu, mode, { ...addrRes, data: ((~addrRes.data) & 0xff) })
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -41,7 +51,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, cpu.Register.A)
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -56,8 +66,8 @@ export const Instructions = {
             cpu.memWrite(addr, res & 0xff)
         }
         setFlag.C(cpu.PS, res > 0xff)
-        setFlag.Z(cpu.PS, cpu.Register.A)
-        setFlag.N(cpu.PS, res)
+        setFlag.Z(cpu.PS, res & 0xff)
+        setFlag.N(cpu.PS, res & 0xff)
         return 0
     },
 
@@ -228,7 +238,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, r - data)
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -309,7 +319,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, res)
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -340,7 +350,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, cpu.Register.A)
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -352,7 +362,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, cpu.Register.X)
 
         if (mode === 'AY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -364,7 +374,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, cpu.Register.Y)
 
         if (mode === 'AX') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -395,7 +405,7 @@ export const Instructions = {
         setFlag.N(cpu.PS, res)
 
         if (mode === 'AX' || mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
@@ -406,7 +416,9 @@ export const Instructions = {
     },
 
     'PHP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
-        cpu.push8(cpu.Register.PS)
+        // there is no B bit
+        // reference https://github.com/skilldrick/easy6502/blob/gh-pages/simulator/assembler.js
+        cpu.push8(cpu.Register.PS | 0x30)
         return 0
     },
 
@@ -421,6 +433,7 @@ export const Instructions = {
     'PLP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         const res = cpu.pull8()
         cpu.Register.PS = res
+        setFlag.B(cpu.PS, 'PLP')
         return 0
     },
 
@@ -552,14 +565,12 @@ export const Instructions = {
     'AAX': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         const res = cpu.Register.X & cpu.Register.A
         cpu.memWrite(addrRes.addr, res)
-        setFlag.Z(cpu.PS, res)
-        setFlag.N(cpu.PS, res)
         return 0
     },
 
     'ARR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.AND(cpu, 'I', addrRes)
-        Instructions.ROR(cpu, 'AC', { addr: -1, data: cpu.Register.A})
+        Instructions.ROR(cpu, 'AC', { addr: -1, data: cpu.Register.A, isCrossPage: 0 })
         const bit5 = (cpu.Register.A >> 4) & 1
         const bit6 = (cpu.Register.A >> 5) & 1
         setFlag.C(cpu.PS, bit6 === 1)
@@ -569,7 +580,7 @@ export const Instructions = {
 
     'ASR': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.AND(cpu, mode, addrRes)
-        Instructions.LSR(cpu, 'AC', { addr: -1, data: cpu.Register.A })
+        Instructions.LSR(cpu, 'AC', { addr: -1, data: cpu.Register.A, isCrossPage: 0 })
         return 0
     },
 
@@ -600,7 +611,7 @@ export const Instructions = {
 
     'DCP': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.DEC(cpu, mode, addrRes)
-        Instructions.CMP(cpu, mode, addrRes)
+        Instructions.CMP(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
@@ -612,7 +623,7 @@ export const Instructions = {
 
     'ISC': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.INC(cpu, mode, addrRes)
-        Instructions.SBC(cpu, mode, addrRes)
+        Instructions.SBC(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
@@ -634,32 +645,32 @@ export const Instructions = {
         setFlag.Z(cpu.PS, res)
         setFlag.N(cpu.PS, res)
         if (mode === 'AY' || mode === 'IY') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },
 
     'RLA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.ROL(cpu, mode, addrRes)
-        Instructions.AND(cpu, mode, addrRes)
+        Instructions.AND(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
     'RRA': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.ROR(cpu, mode, addrRes)
-        Instructions.ADC(cpu, mode, addrRes)
+        Instructions.ADC(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
     'SLO': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.ASL(cpu, mode, addrRes)
-        Instructions.ORA(cpu, mode, addrRes)
+        Instructions.ORA(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
     'SRE': function (cpu: ICPU, mode: keyof ADDRMODE, addrRes: AddressingRes) {
         Instructions.LSR(cpu, mode, addrRes)
-        Instructions.EOR(cpu, mode, addrRes)
+        Instructions.EOR(cpu, mode, { ...addrRes, data: cpu.memRead(addrRes.addr) })
         return 0
     },
 
@@ -678,7 +689,7 @@ export const Instructions = {
         Instructions.NOP(cpu, mode, addrRes)
         Instructions.NOP(cpu, mode, addrRes)
         if (mode === 'AX') {
-            return 1
+            return addrRes.isCrossPage
         }
         return 0
     },

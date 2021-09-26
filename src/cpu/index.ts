@@ -29,17 +29,17 @@ export default class CPU implements ICPU{
          * nestest log: https://www.qmtpro.com/~nes/misc/nestest.log
          */
         const snapshot = {
-            PC: to16(this.Register.PC),
-            A: to16(this.Register.A),
-            X: to16(this.Register.X),
-            Y: to16(this.Register.Y),
-            P: to16(this.Register.PS),
-            SP: to16(this.Register.SP),
+            PC: ('00' + to16(this.Register.PC)).slice(-4),
+            A: ('0' + to16(this.Register.A)).slice(-2),
+            X: ('0' + to16(this.Register.X)).slice(-2),
+            Y: ('0' + to16(this.Register.Y)).slice(-2),
+            P: ('0' + to16(this.Register.PS)).slice(-2),
+            SP: ('0' + to16(this.Register.SP)).slice(-2),
             CYC: this.clockCycle
         }
 
         const { opcInfo, arg } = this.resolveAStatement()
-        const addrRes = AddressingMode[opcInfo.mode](this, arg)
+        const addrRes = AddressingMode[opcInfo.mode](this, arg, opcInfo.name)
         const cycle = (opcInfo.cycles + Instructions[opcInfo.name](this, opcInfo.mode, addrRes))
         this.takeCycles(cycle)
 

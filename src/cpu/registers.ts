@@ -23,6 +23,7 @@ export const setFlag = {
                     return 1
                 case 'IRQ':
                 case 'NMI':
+                case 'PLP':
                     return 0
             }
             return 0
@@ -34,7 +35,9 @@ export const setFlag = {
         // ?
         // overflow occurs if
         // (m ^ r) & (n ^ r) & 0x80 is nonzero
-        const res = !!((m ^ r) & (n ^ r) & 0x80)
+        // const res = !!((m ^ r) & (n ^ r) & 0x80)
+        // reference to https://github.com/skilldrick/easy6502/blob/gh-pages/simulator/assembler.js
+        const res = !!((m ^ n) & 0x80)
         PS.V = res ? 1 : 0
     },
     N:  function (PS: PS, value: number) {
@@ -65,8 +68,8 @@ export function Registers (PS: PS) {
             PS.I = (v & 4) >> 2
             PS.D = (v & 8) >> 3
             PS.B = (v & (16 + 32)) >> 4
-            PS.V = (v & 64) >> 5
-            PS.N = (v & 128) >> 6
+            PS.V = (v & 64) >> 6
+            PS.N = (v & 128) >> 7
         }
     }
 }

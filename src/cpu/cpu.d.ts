@@ -13,7 +13,9 @@ export type UINT16 = number
 
 export type AddressingRes = {
     addr: ADDR
-    data: number
+    data: number,
+    isCrossPage: number,
+    arg?: number
 }
 export type ADDRMODE = {
     // Immediate
@@ -31,7 +33,7 @@ export type ADDRMODE = {
     // Absolute, Y
     AY: (cpu: ICPU, arg: ADDR) => AddressingRes
     // (Indirect)
-    IN: (cpu: ICPU, arg: ADDR) => AddressingRes
+    IN: (cpu: ICPU, arg: ADDR, instruction: string) => AddressingRes
     // (Indirect, X)
     IX: (cpu: ICPU, arg: ZADDR) => AddressingRes
     // (Indirect), Y

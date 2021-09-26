@@ -46,7 +46,7 @@ export function cpuRunningHelper (cpu: ICPU) {
         }
         return false
     }
-    cpu.IR_RESET()
+    // cpu.IR_RESET()
     cpu.subClockCycleHandler = function (curClockCycle) {
         for (const T in runningCallbackTable) {
             if (curClockCycle % parseInt(T) === 0) {
@@ -96,8 +96,8 @@ export function cpuRunningHelper (cpu: ICPU) {
                     }
                     try {
                         const s = cpu.step()
-                        Logger.console(
-                            `${to16(s.PC)} ${to16(s.opcInfo.opcode)} ${to16(s.arg)}` + 
+                        Logger.screen(
+                            `${to16(s.PC)} ${('0' + to16(s.opcInfo.opcode)).slice(-2)} ${to16(s.arg)}` + 
                             `   ${s.opcInfo.name} ${to16(s.addrRes.addr === -1 ? s.addrRes.data : s.addrRes.addr)}` +
                             `   A:${s.A} X:${s.X} Y:${s.Y} P:${s.P} SP:${s.SP} CYC:${s.CYC}`
                         )
