@@ -10,14 +10,15 @@ import { cpuRunningHelper } from './cpu/utils'
 loadROM('./cartridges/nestest.nes', (buffer) => {
     const cartridge = new Cartridge(new Uint8Array(buffer))
     const cdata = cartridge.resolve()
-    const cpu = new CPU(NESCPUMap, new Bus(cdata))
+    const bus = new Bus()
+    const cpu = new CPU(NESCPUMap, bus)
     const cpuRunner = cpuRunningHelper(cpu)
 
-    /*
+    bus.loadROM(cdata)
+
     document.getElementById('step-btn').onclick = function () {
         cpuRunner.exec()
     }
-    */
    cpuRunner.launchWithLog()
 })
 /****/
@@ -27,7 +28,9 @@ import GBus from './bus/general-bus'
 import TestGamePRG from './cpu-test-game/program'
 import { TestGameMap } from './cpu-test-game/memory-map'
 
-const testGame = new TestGame(new GBus(TestGamePRG, TestGameMap))
+const bus = new GBus(TestGameMap)
+const testGame = new TestGame(bus)
+bus.loadROM(TestGamePRG)
 testGame.run()
 /****/
 

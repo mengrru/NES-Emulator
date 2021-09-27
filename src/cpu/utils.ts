@@ -39,6 +39,7 @@ export function cpuRunningHelper (cpu: ICPU) {
         const { ADDR_SPACE } = cpu.memoryMap
         if (cpu.Register.PC === ADDR_SPACE.PRG_ROM_END ||
             cpu.Register.PC === 0 ||
+            // when you run test, use this condition
             // (cpu.Register.PC - ADDR_SPACE.PRG_ROM_START) === cpu.bus.PRGROMLen ||
             cpu.memRead(cpu.Register.PC) === -1 ||
             cpu.Register.PC === -1) {
@@ -46,7 +47,6 @@ export function cpuRunningHelper (cpu: ICPU) {
         }
         return false
     }
-    // cpu.IR_RESET()
     cpu.subClockCycleHandler = function (curClockCycle) {
         for (const T in runningCallbackTable) {
             if (curClockCycle % parseInt(T) === 0) {
@@ -67,7 +67,6 @@ export function cpuRunningHelper (cpu: ICPU) {
             }
         },
         launch (done?: () => void) {
-            cpu.IR_RESET()
             timeout = setInterval(() => {
                 for (let i = 0; i < 97; i++) {
                     if (shouldStop()) {
@@ -87,7 +86,6 @@ export function cpuRunningHelper (cpu: ICPU) {
             }, 15);
         },
         launchWithLog () {
-            cpu.IR_RESET()
             timeout = setInterval(() => {
                 for (let i = 0; i < 97; i++) {
                     if (shouldStop()) {

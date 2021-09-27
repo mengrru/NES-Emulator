@@ -16,6 +16,8 @@ export default class CPU implements ICPU{
 
     constructor (memoryMap: any, bus: any) {
         this.bus = bus
+        this.bus.connectCPU(this)
+
         this.memoryMap = memoryMap
         this.PS = ProcessorStatus()
         this.Register = Registers(this.PS)

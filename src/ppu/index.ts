@@ -44,9 +44,9 @@ export class PPU {
     regData = new REG_Data()
     regOAMDMA = new REG_OAMDMA()
 
-    constructor (cartridgeData: CartridgeResolvedData) {
-        this.CHRROM = cartridgeData.CHRROM
-        this.mirroring = cartridgeData.screenMirroring
+    constructor (rom: CartridgeResolvedData) {
+        this.CHRROM = rom.CHRROM
+        this.mirroring = rom.screenMirroring
     }
 
     // read/write to CPU

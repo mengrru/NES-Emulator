@@ -2,6 +2,7 @@ import Cartridge from "../cartridges";
 import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE, UINT8 } from "../public.def";
 import { NESCPUMap, PPUReg } from '../memory-map'
 import { PPU } from "../ppu/index";
+import CPU from "../cpu";
 
 /**
  * cpu gets access to memory using three buses:
@@ -70,12 +71,23 @@ export default class Bus {
     private rom: CartridgeResolvedData
     private memory: number[]
     private ppu: PPU
+    private cpu: CPU
 
-    constructor (rom: CartridgeResolvedData) {
+    constructor () {
         this.memory = Array(0xffff + 1).fill(0)
+    }
+    loadROM (rom: CartridgeResolvedData) {
+        if (!this.cpu) {
+            throw new Error('there has no CPU.')
+        }
         this.rom = rom
-        this.ppu = new PPU(rom)
         this.PRGROMLen = rom.PRGROM.length
+        this.ppu = new PPU(rom)
+
+        this.cpu.IR_RESET()
+    }
+    connectCPU (cpu: CPU) {
+        this.cpu = cpu
     }
     memWrite8 (addr: number, value: number) {
         addr = Addr(addr)
