@@ -70,7 +70,7 @@ export interface ICPU {
     PS: PS
     bus: Bus
     memoryMap: any
-    clockCycle: number
+    readonly clockCycle: number
     subClockCycleHandler: (cur: number) => void
     step: () => any
     push8: (value: number) => void

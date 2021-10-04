@@ -67,27 +67,39 @@ function Min (addr: ADDR) {
 }
 
 export default class Bus {
-    PRGROMLen: number
-    private rom: CartridgeResolvedData
+    private _PRGROMLen: number
+    private _rom: CartridgeResolvedData
+    private _ppu: PPU
+    private _cpu: CPU
     private memory: number[]
-    private ppu: PPU
-    private cpu: CPU
 
     constructor () {
         this.memory = Array(0xffff + 1).fill(0)
+    }
+    get PRGROMLen () {
+        return this._PRGROMLen
+    }
+    get rom () {
+        return this._rom
+    }
+    get ppu () {
+        return this._ppu
+    }
+    get cpu () {
+        return this._cpu
     }
     loadROM (rom: CartridgeResolvedData) {
         if (!this.cpu) {
             throw new Error('there has no CPU.')
         }
-        this.rom = rom
-        this.PRGROMLen = rom.PRGROM.length
-        this.ppu = new PPU(rom)
+        this._rom = rom
+        this._PRGROMLen = rom.PRGROM.length
+        this._ppu = new PPU(this)
 
         this.cpu.IR_RESET()
     }
     connectCPU (cpu: CPU) {
-        this.cpu = cpu
+        this._cpu = cpu
     }
     memWrite8 (addr: number, value: number) {
         addr = Addr(addr)

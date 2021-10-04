@@ -3,16 +3,16 @@ import { AddressingMode } from './addressing-mode'
 import { PS, REG, ICPU, BYTE } from './cpu.d'
 import { Instructions } from './instructions'
 import Opcode from './opcode'
-import { ProcessorStatus, Registers } from './registers'
+import { ProcessorStatus, Registers, setFlag } from './registers'
 import { to16 } from './utils'
 
 export default class CPU implements ICPU{
-    clockCycle: number = 0
     Register: REG
     PS: PS
     memoryMap: any
     bus: Bus
     subClockCycleHandler: (cur: number) => void
+    private _clockCycle: number = 0
 
     constructor (memoryMap: any, bus: any) {
         this.bus = bus
@@ -21,6 +21,10 @@ export default class CPU implements ICPU{
         this.memoryMap = memoryMap
         this.PS = ProcessorStatus()
         this.Register = Registers(this.PS)
+    }
+
+    get clockCycle () {
+        return this._clockCycle
     }
 
     step (): any {
@@ -81,7 +85,8 @@ export default class CPU implements ICPU{
 
     takeCycles (num = 1) {
         for (let i = 0; i < num; i++) {
-            this.clockCycle++
+            this._clockCycle++
+            this.bus.ppu.clockCycle += 3
             if (typeof this.subClockCycleHandler === 'function') {
                 this.subClockCycleHandler(this.clockCycle)
             }
@@ -110,6 +115,22 @@ export default class CPU implements ICPU{
         this.Register.PC = this.memRead(this.memoryMap.IR.RESET, 2)
 
         this.takeCycles(7)
+    }
+
+    IR_NMI () {
+        /**
+         * 1. finishes exection of the current instruction
+         * 2. stores PC and PS on the stack
+         * 3. disables interrupts by setting Disable Interrupt flag in the PS
+         * 4. Loads the Address of Interruput handler routine from 0xfffa(for NMI)
+         * 5. sets PC register pointing to that address
+         */
+        this.push16(this.Register.PC)
+        setFlag.B(this.PS, 'NMI')
+        this.push8(this.Register.PS)
+
+        setFlag.I(this.PS, 0)
+        this.Register.PC = this.memRead(0xfffa, 2)
     }
 
     push8 (value: number) {

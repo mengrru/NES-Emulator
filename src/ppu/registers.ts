@@ -1,3 +1,4 @@
+import { PPU } from "."
 import { BIT, UINT16, UINT8 } from "../public.def"
 
 class FlagReg {
@@ -63,10 +64,12 @@ class DoubleWriteReg {
 
 // 0x2000 write
 export class REG_Controller extends FlagReg {
-    constructor () {
+    ppu: PPU
+    constructor (ppu: PPU) {
         super()
+        this.ppu = ppu
     }
-    nametable (): UINT16 {
+    get nametable (): UINT16 {
         const n = (this.value[1] << 1) | this.value[0]
         switch (n) {
             case 0: return 0x2000
@@ -75,23 +78,45 @@ export class REG_Controller extends FlagReg {
             case 3: return 0x2c00
         }
     }
-    vramAddrInc (): UINT8 {
+    get vramAddrInc (): UINT8 {
         return this.value[2] ? 32 : 1
     }
-    spriteAddr (): UINT16 {
+    set vramAddrInc (v: UINT8) {
+        this.value[2] = v === 32 ? 1 : 0
+    }
+    get spriteAddr (): UINT16 {
         return this.value[3] ? 0x1000 : 0
     }
-    backgroundAddr (): UINT16 {
+    set spriteAddr (v: UINT16) {
+        this.value[3] = v === 0x1000 ? 1 : 0
+    }
+    get backgroundAddr (): UINT16 {
         return this.value[4] ? 0x1000 : 0
     }
-    spriteSize (): number {
+    set backgroundAddr (v: UINT16) {
+        this.value[4] = v === 0x1000 ? 1 : 0
+    }
+    get spriteSize (): number {
         return this.value[5] ? 8 * 16 : 8 * 8
     }
-    ppuSelect (): BIT {
+    set spriteSize (v: number) {
+        this.value[5] = v === 8 * 16 ? 1 : 0
+    }
+    get ppuSelect (): BIT {
         return this.value[6]
     }
-    hasNMI (): boolean {
+    set ppuSelect (v: BIT) {
+        this.value[6] = v
+    }
+    get hasNMI (): boolean {
         return !!this.value[7]
+    }
+    set hasNMI (v: boolean) {
+        const before = this.value[7]
+        this.value[7] = +v
+        if (!before && v && this.ppu.regStatus.inVblank) {
+            this.ppu.IR_NMI()
+        }
     }
 }
 
@@ -100,28 +125,28 @@ export class REG_Mask extends FlagReg {
     constructor () {
         super()
     }
-    greyscale (): boolean {
+    get greyscale (): boolean {
         return !!this.value[0]
     }
-    showBgInLeftmost (): boolean {
+    get showBgInLeftmost (): boolean {
         return !!this.value[1]
     }
-    showSpritesInLeftmost (): boolean {
+    get showSpritesInLeftmost (): boolean {
         return !!this.value[2]
     }
-    showBg (): boolean {
+    get showBg (): boolean {
         return !!this.value[3]
     }
-    showSprites (): boolean {
+    get showSprites (): boolean {
         return !!this.value[4]
     }
-    emRed (): boolean {
+    get emRed (): boolean {
         return !!this.value[5]
     }
-    emGreen (): boolean {
+    get emGreen (): boolean {
         return !!this.value[6]
     }
-    emBlue (): boolean {
+    get emBlue (): boolean {
         return !!this.value[7]
     }
 }
@@ -137,9 +162,12 @@ export class REG_Status extends FlagReg {
     sprite0Hit (): boolean {
         return !!this.value[6]
     }
-    inVblank (): boolean {
+    get inVblank (): boolean {
         return !!this.value[7]
     }
+    set inVblank (v: boolean) {
+        this.value[7] = +v
+    } 
 }
 
 // 0x2003 write

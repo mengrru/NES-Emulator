@@ -1,3 +1,4 @@
+import Bus from "../bus"
 import { NESPPUMap, PPUReg } from "../memory-map"
 import { BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
 import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
@@ -26,27 +27,47 @@ const { CHR_ROM_START, CHR_ROM_END,
     PALETTES_START, PALETTES_END } = NESPPUMap.ADDR_SPACE
 
 export class PPU {
-    CHRROM: Uint8Array
-    mirroring: Mirroring
-    paletteTable: number[] = Array(32).fill(0)
-    VRAM: number[] = Array(2048).fill(0)
-    OAMData: number[] = Array(64 * 4).fill(0)
+    private bus: Bus
+    private CHRROM: Uint8Array
+    private mirroring: Mirroring
+    private paletteTable: number[] = Array(32).fill(0)
+    private VRAM: number[] = Array(2048).fill(0)
+    private OAMData: number[] = Array(64 * 4).fill(0)
 
-    internalBuf: UINT8 = 0
+    private _clockCycle: number = 0
+    private scanline: number = 0
 
-    regController = new REG_Controller()
-    regMask = new REG_Mask()
+    private internalBuf: UINT8 = 0
+
+    private regController = new REG_Controller(this)
+    private regMask = new REG_Mask()
     regStatus = new REG_Status()
-    regOAMAddress = new REG_OAMAddress()
-    regOAMData = new REG_OAMData()
-    regScroll = new REG_Scroll()
-    regAddress = new REG_Address()
-    regData = new REG_Data()
-    regOAMDMA = new REG_OAMDMA()
+    private regOAMAddress = new REG_OAMAddress()
+    private regOAMData = new REG_OAMData()
+    private regScroll = new REG_Scroll()
+    private regAddress = new REG_Address()
+    private regData = new REG_Data()
+    private regOAMDMA = new REG_OAMDMA()
 
-    constructor (rom: CartridgeResolvedData) {
-        this.CHRROM = rom.CHRROM
-        this.mirroring = rom.screenMirroring
+    constructor (bus: Bus) {
+        this.CHRROM = bus.rom.CHRROM
+        this.mirroring = bus.rom.screenMirroring
+        this.bus = bus
+    }
+
+    get clockCycle () {
+        return this._clockCycle
+    }
+
+    set clockCycle (value) {
+        if (value > this._clockCycle) {
+            for (let i = 0; i < value - this._clockCycle; i++) {
+                this._clockCycle++
+                this.tick()
+            }
+        } else {
+            this._clockCycle = value
+        }
     }
 
     // read/write to CPU
@@ -82,7 +103,7 @@ export class PPU {
             [PPUReg.Data] (data: UINT8) {
                 self.regData.set(data)
                 self.memWrite(self.regAddress.get(), data)
-                self.regAddress.inc(self.regController.vramAddrInc())
+                self.regAddress.inc(self.regController.vramAddrInc)
             },
             OAM_DMA (data: UINT8, page: UINT8[]) {
                 self.regOAMDMA.set(data)
@@ -109,10 +130,44 @@ export class PPU {
                 self.regData.set(data)
                 // read or write access to 0x2007 increments the 0x2006
                 // the increment size is determined by the state of the Control register
-                self.regAddress.inc(self.regController.vramAddrInc())
+                self.regAddress.inc(self.regController.vramAddrInc)
                 return self.regData.get()
             },
         }
+    }
+
+    /**
+     * the PPU renders 262 scan lines per frame
+     * each scanline lasts for 341 PPU clock cycles
+     * upon entering scanline 241, PPU triggers NMI interrupt
+     * PPU clock cycles are 3 times faster than CPU clock cycles
+     */
+    private tick () {
+        const cycle = this._clockCycle
+        if (cycle >= 341) {
+            this._clockCycle = 0
+            this.scanline++
+
+            if (this.scanline === 241) {
+                this.regStatus.inVblank = true
+                this.IR_NMI()
+            }
+            if (this.scanline === 262) {
+                this.regStatus.inVblank = false
+                this.scanline = 0
+            }
+        }
+    }
+
+    IR_NMI () {
+        /**
+         * in addition to scanline position,
+         * PPU would immidiately trigger NMI if both of these
+         * conditions are met:
+         * 1. PPU is VBLANK state
+         * 2. "Generate NMI" bit in the controll Register is update from 0 to 1
+         */
+        this.bus.cpu.IR_NMI()
     }
 
     private writePagetoOAM (page: UINT8[]) {
@@ -143,7 +198,9 @@ export class PPU {
                 this.internalBuf = this.CHRROM[addr]
                 return res
             case addr >= VRAM_START && addr <= VRAM_END:
-                this.internalBuf = this.VRAMRead(this.mirroringAddr(addr - VRAM_START))
+                this.internalBuf = this.VRAMRead(
+                    mirroringAddr(addr - VRAM_START, this.mirroring)
+                )
                 return res
             case addr >= PALETTES_START && addr <= PALETTES_END:
                 return this.paletteTable[addr - PALETTES_START]
@@ -164,17 +221,17 @@ export class PPU {
                 throw new Error('invalid PPU memWrite.')
         }
     }
+}
 
-    private mirroringAddr (addr: UINT16) {
-        if (this.mirroring === Mirroring.VERTICAL) {
-            return addr % 0x800
-        } else if (this.mirroring === Mirroring.HORIZONTAL) {
-            if (addr % 0x400 === 1 || addr % 0x400 === 3) {
-                return addr - 0x400
-            } else {
-                return addr
-            }
+function mirroringAddr (addr: UINT16, mirroring: Mirroring): UINT16 {
+    if (mirroring === Mirroring.VERTICAL) {
+        return addr % 0x800
+    } else if (mirroring === Mirroring.HORIZONTAL) {
+        if (addr % 0x400 === 1 || addr % 0x400 === 3) {
+            return addr - 0x400
+        } else {
+            return addr
         }
-        console.warn(`VRAM addr: ${addr}`)
     }
+    console.warn(`VRAM addr: ${addr}`)
 }
