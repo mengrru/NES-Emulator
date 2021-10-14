@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	tsc && cp -r public/* build/
+	./node_modules/typescript/bin/tsc && cp -r public/* build/
 
 clean:
 	rm -rf build/

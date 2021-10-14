@@ -1,7 +1,16 @@
 import Bus from "../bus"
 import { NESPPUMap, PPUReg } from "../memory-map"
-import { BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
+import { BYTE, BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
 import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
+import Palette from './palette'
+import {Tile} from "./ppu.def"
+
+/**
+* Graphics data
+* 8 * 8 pixel image could use up to 4 colors.
+* (background tile can have 4 colors, a sprite tile can have 3 colors)
+* 8 * 8 * 2 = 128 bits = 16 bytes to codify a single tile
+*/
 
 /**
  * Two communication channels exist between CPU and PPU:
@@ -28,8 +37,9 @@ const { CHR_ROM_START, CHR_ROM_END,
 
 export class PPU {
     private bus: Bus
-    private CHRROM: Uint8Array
+
     private mirroring: Mirroring
+    private CHRROM: Uint8Array
     private paletteTable: number[] = Array(32).fill(0)
     private VRAM: number[] = Array(2048).fill(0)
     private OAMData: number[] = Array(64 * 4).fill(0)
@@ -221,6 +231,21 @@ export class PPU {
                 throw new Error('invalid PPU memWrite.')
         }
     }
+
+    frame (){
+    }
+
+    tiles_test (): Tile[] {
+        const len = this.CHRROM.length
+        const output = []
+        for (let i = 0; i < len; i += 16) {
+            output.push(combineToATile(
+                this.CHRROM.slice(i, i + 8),
+                this.CHRROM.slice(i + 8, i + 16)
+            ))
+        }
+        return output
+    }
 }
 
 function mirroringAddr (addr: UINT16, mirroring: Mirroring): UINT16 {
@@ -234,4 +259,37 @@ function mirroringAddr (addr: UINT16, mirroring: Mirroring): UINT16 {
         }
     }
     console.warn(`VRAM addr: ${addr}`)
+}
+
+function combineToATile (low: Uint8Array, high: Uint8Array): Tile {
+    const res = []
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            if (!res[i]) {
+                res[i] = []
+            }
+            const code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2)
+            res[i][j] = ((code: number) => {
+                switch (code) {
+                    case 0: return Palette[0x01]
+                    case 1: return Palette[0x23]
+                    case 2: return Palette[0x27]
+                    case 3: return Palette[0x30]
+                    default: throw new Error('invalid color code ' + code)
+                }
+            })(code)
+        }
+    }
+    return res
+}
+
+function Byte (x: BYTE) {
+    return {
+        gets (n: number): string {
+            return ((x >> n) & 1).toString()
+        },
+        getn (n: number): number {
+            return ((x >> n) & 1)
+        }
+    }
 }

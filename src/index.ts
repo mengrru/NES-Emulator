@@ -6,7 +6,9 @@ import Cartridge from './cartridges/index'
 import Bus from './bus/index'
 import { NESCPUMap } from './memory-map'
 import { cpuRunningHelper } from './cpu/utils'
+import Screen from './screen/index'
 
+/*
 loadROM('./cartridges/nestest.nes', (buffer) => {
     const cartridge = new Cartridge(new Uint8Array(buffer))
     const cdata = cartridge.resolve()
@@ -21,6 +23,22 @@ loadROM('./cartridges/nestest.nes', (buffer) => {
     }
    cpuRunner.launchWithLog()
 })
+*/
+/* test tiles render on screen */
+loadROM('./cartridges/pac-man.nes', (buffer) => {
+    const cartridge = new Cartridge(new Uint8Array(buffer))
+    const cdata = cartridge.resolve()
+    const bus = new Bus()
+    const cpu = new CPU(NESCPUMap, bus)
+    const cpuRunner = cpuRunningHelper(cpu)
+    const canvas = document.createElement('canvas')
+    const screen = new Screen(canvas, 2)
+
+    bus.loadROM(cdata)
+    screen.render_test(bus.ppu.tiles_test())
+    document.body.appendChild(canvas)
+})
+
 /****/
 
 /** only cpu test by running test game
