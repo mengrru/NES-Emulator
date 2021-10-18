@@ -31,12 +31,13 @@ loadROM('./cartridges/pac-man.nes', (buffer) => {
     const bus = new Bus()
     const cpu = new CPU(NESCPUMap, bus)
     const cpuRunner = cpuRunningHelper(cpu)
-    const canvas = document.createElement('canvas')
-    const screen = new Screen(canvas, 2)
+    // const canvas = document.createElement('canvas')
+    // const screen = new Screen(canvas, 2)
 
+    document.body.appendChild(bus.screen.canvas)
     bus.loadROM(cdata)
-    screen.render_test(bus.ppu.tiles_test())
-    document.body.appendChild(canvas)
+    cpuRunner.launch()
+    // screen.render_test(bus.ppu.tiles_test())
 })
 
 /****/

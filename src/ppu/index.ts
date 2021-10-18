@@ -31,6 +31,10 @@ import {Tile} from "./ppu.def"
  * https://bugzmanov.github.io/nes_ebook/chapter_6_1.html
  */
 
+type PPUAddr = UINT16
+type VRAMAddr = UINT16
+type OAMAddr = UINT8
+
 const { CHR_ROM_START, CHR_ROM_END,
     VRAM_START, VRAM_END,
     PALETTES_START, PALETTES_END } = NESPPUMap.ADDR_SPACE
@@ -127,12 +131,28 @@ export class PPU {
     get read () {
         const self = this
         return {
+            [PPUReg.Mask] () {
+                return self.regMask.get()
+            },
+            [PPUReg.Scroll] () {
+                return self.regScroll.get()
+            },
+            [PPUReg.Controller] () {
+                return self.regController.get()
+            },
+            [PPUReg.OAM_Address] () {
+                return self.regOAMAddress.get()
+            },
+            [PPUReg.Address] () {
+                return self.regAddress.value[1]
+            },
             [PPUReg.Status] () {
                 self.regAddress.reset()
                 return self.regStatus.get()
             },
             [PPUReg.OAM_Data] () {
-                return self.regOAMData.get()
+               // return self.regOAMData.get()
+               return self.OAMRead(self.regOAMAddress.get())
             },
             [PPUReg.Data] () {
                 const addr = self.regAddress.get()
@@ -140,7 +160,8 @@ export class PPU {
                 self.regData.set(data)
                 // read or write access to 0x2007 increments the 0x2006
                 // the increment size is determined by the state of the Control register
-                self.regAddress.inc(self.regController.vramAddrInc)
+                // but in practice this operate will lead to wrong render result.
+                // self.regAddress.inc(self.regController.vramAddrInc)
                 return self.regData.get()
             },
         }
@@ -158,6 +179,9 @@ export class PPU {
             this._clockCycle = 0
             this.scanline++
 
+            if (this.scanline === 240) {
+                this.renderBackground()
+            }
             if (this.scanline === 241) {
                 this.regStatus.inVblank = true
                 this.IR_NMI()
@@ -184,23 +208,25 @@ export class PPU {
         this.OAMData = page
     }
 
-    private OAMRead (addr: UINT8): UINT8 {
+    private OAMRead (addr: OAMAddr): UINT8 {
         return this.OAMData[addr]
     }
 
-    private OAMWrite (addr: UINT8, data: UINT8) {
+    private OAMWrite (addr: OAMAddr, data: UINT8) {
         this.OAMData[addr] = data
     }
 
-    private VRAMRead (addr: UINT16): UINT8 {
-        return this.VRAM[addr]
+    private VRAMRead (addr: PPUAddr): UINT8 {
+        const realAddr = mirroringAddr(addr - VRAM_START, this.mirroring)
+        return this.VRAM[realAddr]
     }
 
-    private VRAMWrite (addr: UINT16, data: UINT8) {
-        this.VRAM[addr] = data
+    private VRAMWrite (addr: PPUAddr, data: UINT8) {
+        const realAddr = mirroringAddr(addr - VRAM_START, this.mirroring)
+        this.VRAM[realAddr] = data
     }
 
-    private memRead (addr: UINT16) {
+    private memRead (addr: PPUAddr) {
         addr %= 0x4000
         const res = this.internalBuf
         switch (true) {
@@ -208,19 +234,20 @@ export class PPU {
                 this.internalBuf = this.CHRROM[addr]
                 return res
             case addr >= VRAM_START && addr <= VRAM_END:
-                this.internalBuf = this.VRAMRead(
-                    mirroringAddr(addr - VRAM_START, this.mirroring)
-                )
+                this.internalBuf = this.VRAMRead(addr)
                 return res
             case addr >= PALETTES_START && addr <= PALETTES_END:
                 return this.paletteTable[addr - PALETTES_START]
             default:
-                throw new Error('invalid PPU memRead.')
+                console.warn('invalid PPU memRead.' + addr.toString(16))
         }
     }
 
-    private memWrite (addr: UINT16, data: UINT8) {
+    private memWrite (addr: PPUAddr, data: UINT8) {
         addr %= 0x4000
+        if (addr < 0x2000) {
+            addr += 0x2000
+        }
         switch (true) {
             case addr >= VRAM_START && addr <= VRAM_END:
                 return this.VRAMWrite(addr, data)
@@ -228,11 +255,28 @@ export class PPU {
                 this.paletteTable[addr - PALETTES_START] = data
                 return
             default:
-                throw new Error('invalid PPU memWrite.')
+                console.warn('invalid PPU memWrite.' + addr.toString(16))
         }
     }
 
     frame (){
+    }
+
+    renderBackground () {
+        const nametableStartAddr = this.regController.nametable
+        const bgStartAddr = this.regController.backgroundAddr
+        const LEN = 32 * 30
+        const res = []
+        for (let i = nametableStartAddr; i < nametableStartAddr + LEN; i++) {
+            const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + bgStartAddr
+            res.push(combineToATile(
+                this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
+                this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16)
+            ))
+        }
+        const start = mirroringAddr(nametableStartAddr - 0x2000, this.mirroring)
+        console.log(this.VRAM.slice(start, start + 0x400))
+        this.bus.screen.render_test(res)
     }
 
     tiles_test (): Tile[] {
@@ -248,12 +292,16 @@ export class PPU {
     }
 }
 
-function mirroringAddr (addr: UINT16, mirroring: Mirroring): UINT16 {
+function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): UINT16 {
     if (mirroring === Mirroring.VERTICAL) {
         return addr % 0x800
     } else if (mirroring === Mirroring.HORIZONTAL) {
-        if (addr % 0x400 === 1 || addr % 0x400 === 3) {
+        if (Math.floor(addr / 0x400) === 1) {
             return addr - 0x400
+        } else if (Math.floor(addr / 0x400) === 2) {
+            return addr - 0x400
+        } else if (Math.floor(addr / 0x400) === 3) {
+            return addr - 0x800
         } else {
             return addr
         }

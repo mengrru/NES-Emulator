@@ -2,7 +2,8 @@ import Cartridge from "../cartridges";
 import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE, UINT8 } from "../public.def";
 import { NESCPUMap, PPUReg } from '../memory-map'
 import { PPU } from "../ppu/index";
-import CPU from "../cpu";
+import CPU from "../cpu/index";
+import Screen from "../screen/index";
 
 /**
  * cpu gets access to memory using three buses:
@@ -71,10 +72,12 @@ export default class Bus {
     private _rom: CartridgeResolvedData
     private _ppu: PPU
     private _cpu: CPU
+    private _screen: Screen
     private memory: number[]
 
     constructor () {
         this.memory = Array(0xffff + 1).fill(0)
+        this._screen = new Screen(document.createElement('canvas'), 2)
     }
     get PRGROMLen () {
         return this._PRGROMLen
@@ -87,6 +90,9 @@ export default class Bus {
     }
     get cpu () {
         return this._cpu
+    }
+    get screen () {
+        return this._screen
     }
     loadROM (rom: CartridgeResolvedData) {
         if (!this.cpu) {
@@ -121,7 +127,7 @@ export default class Bus {
             console.warn(`invalid write addr ${addr} on PRG_ROM`)
             return
         } else if (addr >= PPU_REG_START && addr <= PPU_REG_END) {
-            console.warn(`address ${addr} is read-only.`)
+            console.warn(`address ${addr.toString()} is read-only.`)
             return
         }
         this.memory[Addr(addr)] = value
@@ -136,7 +142,8 @@ export default class Bus {
             case addr >= PRG_ROM_START && addr <= PRG_ROM_END:
                 return this.readPRGROM(addr - 0x8000)
             case addr >= PPU_REG_START && addr <= PPU_REG_END:
-                throw new Error(`address ${addr} is write-only.`)
+                // console.warn(`address ${addr.toString(16)} is write-only.`)
+                return this.ppu.read[addr]()
             default:
                 return this.memory[addr]
         }
