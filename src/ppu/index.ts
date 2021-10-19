@@ -179,18 +179,20 @@ export class PPU {
      */
     private tick () {
         const cycle = this._clockCycle
-        if (cycle >= 341) {
+        if (cycle === 341) {
             this._clockCycle = 0
             this.scanline++
 
-            if (this.scanline === 239) {
+            if (this.scanline === 240) {
                 this.renderBackground()
             }
             if (this.scanline === 241) {
                 this.regStatus.inVblank = true
-                this.IR_NMI()
+                if (this.regController.hasNMI) {
+                    this.IR_NMI()
+                }
             }
-            if (this.scanline === 262) {
+            if (this.scanline === 261) {
                 this.regStatus.inVblank = false
                 this.scanline = 0
             }
