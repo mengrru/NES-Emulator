@@ -1,3 +1,5 @@
+import {RGB} from "./ppu.def"
+
 export default [
     '#6d6d6d', '#002491', '#0000da', '#6d48da', '#91006d', '#b6006d', '#b62400', '#914800',
     '#6d4800', '#244800', '#006d24', '#009100', '#004848', '#000000', '#000000', '#000000',
@@ -10,4 +12,13 @@ export default [
 
     '#ffffff', '#b6daff', '#dab6ff', '#ffb6ff', '#ff91ff', '#ffb6b6', '#ffda91', '#ffff48',
     '#ffff6d', '#b6ff48', '#91ff6d', '#48ffda', '#91daff', '#000000', '#000000', '#000000'
-]
+].map(hexColorToRGB) as RGB[]
+
+function hexColorToRGB (hexColor: string): number[] {
+    hexColor = hexColor.slice(1)
+    return [
+        parseInt(hexColor.slice(0, 2), 16),
+        parseInt(hexColor.slice(2, 4), 16),
+        parseInt(hexColor.slice(4), 16)
+    ]
+}

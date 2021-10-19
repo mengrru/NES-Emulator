@@ -1,4 +1,4 @@
-import {Tile} from "../ppu/ppu.def"
+import {RGB, Tile} from "../ppu/ppu.def"
 
 const W = 256
 const H = 240
@@ -17,19 +17,37 @@ export default class Screen {
     }
 
     render_test (tiles: Tile[]) {
+        const imageData = new ImageData(this.canvas.width, this.canvas.height)
         for (let i = 0; i < tiles.length; i++) {
-            this.renderATile(tiles[i],
-                             i % (W / 8) * 8 * this.scale,
-                             Math.floor(i / (W / 8)) * 8 * this.scale)
+            const X = i % (W / 8) * 8 * this.scale
+            const Y = Math.floor(i / (W / 8)) * 8 * this.scale
+            this.renderATile(tiles[i], X, Y, imageData)
         }
+        this.ctx.putImageData(imageData, 0, 0)
     }
-    renderATile (tile: Tile, X: number, Y: number) {
+
+    renderATile (tile: Tile, X: number, Y: number, imageData: ImageData) {
         const S = this.scale
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
-                this.ctx.fillStyle = tile[i][j]
-                this.ctx.fillRect(X + ((7 - j) * S), Y + (i * S), S, S)
+                fillRect(imageData, tile[i][j],
+                         X + (7 - j) * S,
+                         Y + (i * S),
+                         S, S)
             }
+        }
+    }
+}
+
+function fillRect (imageData: ImageData, color: RGB, X: number, Y: number, width: number, height: number) {
+    const pixel = imageData.data
+    for (let y = Y; y < Y + height; y++) {
+        for (let x = X; x < X + width; x++) {
+            const index = y * imageData.width * 4 + x * 4
+            pixel[index] = color[0]
+            pixel[index + 1] = color[1]
+            pixel[index + 2] = color[2]
+            pixel[index + 3] = 255
         }
     }
 }

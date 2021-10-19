@@ -68,7 +68,7 @@ export function cpuRunningHelper (cpu: ICPU) {
         },
         launch (done?: () => void) {
             timeout = setInterval(() => {
-                for (let i = 0; i < 26000; i++) {
+                for (let i = 0; i < 30000; i++) {
                     if (shouldStop()) {
                         clearInterval(timeout)
                         typeof done === 'function'
@@ -83,7 +83,7 @@ export function cpuRunningHelper (cpu: ICPU) {
                         throw e
                     }
                 }
-            }, 15);
+            }, 10);
         },
         launchWithLog () {
             timeout = setInterval(() => {

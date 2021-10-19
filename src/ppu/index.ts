@@ -2,7 +2,7 @@ import Bus from "../bus"
 import { NESPPUMap, PPUReg } from "../memory-map"
 import { BYTE, BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
 import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
-import Palette from './palette'
+import Colors from './colors'
 import {Tile} from "./ppu.def"
 
 /**
@@ -75,7 +75,11 @@ export class PPU {
 
     set clockCycle (value) {
         if (value > this._clockCycle) {
-            for (let i = 0; i < value - this._clockCycle; i++) {
+            const old = this._clockCycle
+            // what??
+            // cpu cycle : ppu cycle == 1:2, background render is ok
+            // cpu cycle : ppu cycle == 1:3, background render has some problems
+            for (let i = 0; i < value - old; i++) {
                 this._clockCycle++
                 this.tick()
             }
@@ -179,7 +183,7 @@ export class PPU {
             this._clockCycle = 0
             this.scanline++
 
-            if (this.scanline === 240) {
+            if (this.scanline === 239) {
                 this.renderBackground()
             }
             if (this.scanline === 241) {
@@ -262,20 +266,24 @@ export class PPU {
     frame (){
     }
 
-    renderBackground () {
+    private renderBackground () {
         const nametableStartAddr = this.regController.nametable
         const bgStartAddr = this.regController.backgroundAddr
+        const attributeTable = this.VRAM.slice(
+            mirroringAddr(nametableStartAddr, this.mirroring), 1024
+        ).slice(-64)
         const LEN = 32 * 30
         const res = []
         for (let i = nametableStartAddr; i < nametableStartAddr + LEN; i++) {
             const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + bgStartAddr
+            const paletteIndex = getPaletteIndex(i % 32, Math.floor(i / 32), mirroringAddr(i, this.mirroring), attributeTable)
             res.push(combineToATile(
                 this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
-                this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16)
+                this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16),
+                getBgPalette(this.paletteTable, paletteIndex)
             ))
         }
         const start = mirroringAddr(nametableStartAddr - 0x2000, this.mirroring)
-        console.log(this.VRAM.slice(start, start + 0x400))
         this.bus.screen.render_test(res)
     }
 
@@ -289,6 +297,29 @@ export class PPU {
             ))
         }
         return output
+    }
+}
+
+function getBgPalette (paletteTable: number[], paletteIndex: number): number[] {
+    return paletteTable.slice(paletteIndex * 4 + 1, paletteIndex * 4 + 1 + 3)
+}
+
+function getPaletteIndex (x: number, y: number, addr: VRAMAddr, attributeTable: number[]): number {
+    const attributeIndex = Math.floor(x / 4) + Math.floor(y / 4) * (32 / 4)
+    const attribute = attributeTable[attributeIndex]
+    let res
+    if (Math.floor(((addr & 0xf0) >> 4) / 4) % 2 === 0) {
+        res = attribute & 0xf
+    } else {
+        res = attribute >> 4
+    }
+    switch (addr & 0b11) {
+        case 0:
+        case 1:
+            return res & 0b11
+        case 2:
+        case 3:
+            return res >> 2
     }
 }
 
@@ -309,7 +340,10 @@ function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): UINT16 {
     console.warn(`VRAM addr: ${addr}`)
 }
 
-function combineToATile (low: Uint8Array, high: Uint8Array): Tile {
+function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[]): Tile {
+    if (!palette) {
+        palette = [0x23, 0x27, 0x30]
+    }
     const res = []
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
@@ -317,15 +351,7 @@ function combineToATile (low: Uint8Array, high: Uint8Array): Tile {
                 res[i] = []
             }
             const code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2)
-            res[i][j] = ((code: number) => {
-                switch (code) {
-                    case 0: return Palette[0x01]
-                    case 1: return Palette[0x23]
-                    case 2: return Palette[0x27]
-                    case 3: return Palette[0x30]
-                    default: throw new Error('invalid color code ' + code)
-                }
-            })(code)
+            res[i][j] = code === 0 ? Colors[0x3f] : Colors[palette[code - 1]]
         }
     }
     return res
