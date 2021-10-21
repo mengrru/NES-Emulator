@@ -271,21 +271,21 @@ export class PPU {
     private renderBackground () {
         const nametableStartAddr = this.regController.nametable
         const bgStartAddr = this.regController.backgroundAddr
+        const startVRAMAddr = mirroringAddr(nametableStartAddr - VRAM_START, this.mirroring)
         const attributeTable = this.VRAM.slice(
-            mirroringAddr(nametableStartAddr, this.mirroring), 1024
+            startVRAMAddr, startVRAMAddr + 1024
         ).slice(-64)
         const LEN = 32 * 30
         const res = []
-        for (let i = nametableStartAddr; i < nametableStartAddr + LEN; i++) {
+        for (let i = nametableStartAddr, j = 0; i < nametableStartAddr + LEN; i++, j++) {
             const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + bgStartAddr
-            const paletteIndex = getPaletteIndex(i % 32, Math.floor(i / 32), mirroringAddr(i, this.mirroring), attributeTable)
+            const paletteIndex = getPaletteIndex(j % 32, Math.floor(j / 32), attributeTable)
             res.push(combineToATile(
                 this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
                 this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16),
                 getBgPalette(this.paletteTable, paletteIndex)
             ))
         }
-        const start = mirroringAddr(nametableStartAddr - 0x2000, this.mirroring)
         this.bus.screen.render_test(res)
     }
 
@@ -303,29 +303,22 @@ export class PPU {
 }
 
 function getBgPalette (paletteTable: number[], paletteIndex: number): number[] {
-    return paletteTable.slice(paletteIndex * 4 + 1, paletteIndex * 4 + 1 + 3)
+    // return paletteTable.slice(paletteIndex * 4 + 1, paletteIndex * 4 + 1 + 3)
+    return paletteTable.slice(paletteIndex * 4, paletteIndex * 4 + 4)
 }
 
-function getPaletteIndex (x: number, y: number, addr: VRAMAddr, attributeTable: number[]): number {
+function getPaletteIndex (x: number, y: number, attributeTable: number[]): number {
     const attributeIndex = Math.floor(x / 4) + Math.floor(y / 4) * (32 / 4)
     const attribute = attributeTable[attributeIndex]
-    let res
-    if (Math.floor(((addr & 0xf0) >> 4) / 4) % 2 === 0) {
-        res = attribute & 0xf
-    } else {
-        res = attribute >> 4
-    }
-    switch (addr & 0b11) {
-        case 0:
-        case 1:
-            return res & 0b11
-        case 2:
-        case 3:
-            return res >> 2
+    switch ((Math.floor(x % 4 / 2) << 1) + Math.floor(y % 4 / 2)) {
+        case 0b00: return attribute & 0b11
+        case 0b10: return (attribute >> 2) & 0b11
+        case 0b01: return (attribute >> 4) & 0b11
+        case 0b11: return (attribute >> 6) & 0b11
     }
 }
 
-function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): UINT16 {
+function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): VRAMAddr {
     if (mirroring === Mirroring.VERTICAL) {
         return addr % 0x800
     } else if (mirroring === Mirroring.HORIZONTAL) {
@@ -353,7 +346,8 @@ function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[]):
                 res[i] = []
             }
             const code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2)
-            res[i][j] = code === 0 ? Colors[0x3f] : Colors[palette[code - 1]]
+            // res[i][j] = code === 0 ? Colors[0x3f] : Colors[palette[code - 1]]
+            res[i][j] = Colors[palette[code]]
         }
     }
     return res
