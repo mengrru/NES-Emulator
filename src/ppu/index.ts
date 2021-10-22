@@ -76,9 +76,6 @@ export class PPU {
     set clockCycle (value) {
         if (value > this._clockCycle) {
             const old = this._clockCycle
-            // what??
-            // cpu cycle : ppu cycle == 1:2, background render is ok
-            // cpu cycle : ppu cycle == 1:3, background render has some problems
             for (let i = 0; i < value - old; i++) {
                 this._clockCycle++
                 this.tick()
@@ -184,7 +181,7 @@ export class PPU {
             this.scanline++
 
             if (this.scanline === 240) {
-                this.renderBackground()
+                this.frame()
             }
             if (this.scanline === 241) {
                 this.regStatus.inVblank = true
@@ -265,12 +262,15 @@ export class PPU {
         }
     }
 
-    frame (){
+    private frame (){
+        this.renderBackground()
+        this.renderSprites()
+        this.bus.screen.render()
     }
 
     private renderBackground () {
         const nametableStartAddr = this.regController.nametable
-        const bgStartAddr = this.regController.backgroundAddr
+        const CHRBank = this.regController.backgroundAddr
         const startVRAMAddr = mirroringAddr(nametableStartAddr - VRAM_START, this.mirroring)
         const attributeTable = this.VRAM.slice(
             startVRAMAddr, startVRAMAddr + 1024
@@ -278,7 +278,7 @@ export class PPU {
         const LEN = 32 * 30
         const res = []
         for (let i = nametableStartAddr, j = 0; i < nametableStartAddr + LEN; i++, j++) {
-            const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + bgStartAddr
+            const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + CHRBank
             const paletteIndex = getPaletteIndex(j % 32, Math.floor(j / 32), attributeTable)
             res.push(combineToATile(
                 this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
@@ -286,7 +286,37 @@ export class PPU {
                 getBgPalette(this.paletteTable, paletteIndex)
             ))
         }
-        this.bus.screen.render_test(res)
+        this.bus.screen.drawBg(res)
+    }
+
+    private renderSprites () {
+        const oam = this.OAMData
+        for (let i = oam.length - 4; i >= 0; i-=4) {
+            const x = oam[i + 3]
+            const y = oam[i]
+            const index = oam[i + 1]
+            const attr = oam[i + 2]
+
+            const priority = attr >> 5 & 1
+            if (priority) {
+                continue
+            }
+            const flipH = (attr >> 6 & 1) ? true : false
+            const flipV = (attr >> 7 & 1) ? true : false
+            const palette = getSpritePalette(this.paletteTable, attr & 0b11)
+
+            const CHRBank = this.regController.spriteAddr
+            const tileStartAddr = CHRBank + index * 16
+
+            const tile = combineToATile(
+                this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
+                this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16),
+                palette, flipV, flipH, true
+            )
+
+            const scale = this.bus.screen.scale
+            this.bus.screen.drawATile(tile, x * scale, y * scale)
+        }
     }
 
     tiles_test (): Tile[] {
@@ -303,8 +333,12 @@ export class PPU {
 }
 
 function getBgPalette (paletteTable: number[], paletteIndex: number): number[] {
-    // return paletteTable.slice(paletteIndex * 4 + 1, paletteIndex * 4 + 1 + 3)
     return paletteTable.slice(paletteIndex * 4, paletteIndex * 4 + 4)
+}
+
+function getSpritePalette (paletteTable: number[], paletteIndex: number): number[] {
+    const N = 4 * 4
+    return paletteTable.slice(N + paletteIndex * 4, N + paletteIndex * 4 + 4)
 }
 
 function getPaletteIndex (x: number, y: number, attributeTable: number[]): number {
@@ -335,19 +369,23 @@ function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): VRAMAddr {
     console.warn(`VRAM addr: ${addr}`)
 }
 
-function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[]): Tile {
+function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[], v: boolean = false, h: boolean = false, isSprite: boolean = false): Tile {
     if (!palette) {
         palette = [0x23, 0x27, 0x30]
     }
     const res = []
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
-            if (!res[i]) {
-                res[i] = []
+            const a = v ? 7 - i : i, b = h ? 7 - j : j
+            if (!res[a]) {
+                res[a] = []
             }
             const code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2)
-            // res[i][j] = code === 0 ? Colors[0x3f] : Colors[palette[code - 1]]
-            res[i][j] = Colors[palette[code]]
+            if (isSprite) {
+                res[a][b] = code === 0 ? [0, 0, 0, 0] : Colors[palette[code]]
+            } else {
+                res[a][b] = Colors[palette[code]]
+            }
         }
     }
     return res

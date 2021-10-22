@@ -31,6 +31,7 @@ class SingleWriteReg {
 }
 
 class DoubleWriteReg {
+    // [high, low]
     value: UINT8[] = [0, 0]
     sethi: boolean = true
     constructor () {}
