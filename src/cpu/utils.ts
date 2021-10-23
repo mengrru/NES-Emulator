@@ -83,7 +83,7 @@ export function cpuRunningHelper (cpu: ICPU) {
                         throw e
                     }
                 }
-            }, 10);
+            }, 15);
         },
         launchWithLog () {
             timeout = setInterval(() => {

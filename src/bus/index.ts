@@ -4,6 +4,7 @@ import { NESCPUMap, PPUReg } from '../memory-map'
 import { PPU } from "../ppu/index";
 import CPU from "../cpu/index";
 import Screen from "../screen/index";
+import JoyPad from "../joypad/index";
 
 /**
  * cpu gets access to memory using three buses:
@@ -73,11 +74,13 @@ export default class Bus {
     private _ppu: PPU
     private _cpu: CPU
     private _screen: Screen
+    private _joypad: JoyPad
     private memory: number[]
 
     constructor () {
         this.memory = Array(0xffff + 1).fill(0)
         this._screen = new Screen(document.createElement('canvas'), 2)
+        this._joypad = new JoyPad()
     }
     get PRGROMLen () {
         return this._PRGROMLen
@@ -93,6 +96,9 @@ export default class Bus {
     }
     get screen () {
         return this._screen
+    }
+    get joypad () {
+        return this._joypad
     }
     loadROM (rom: CartridgeResolvedData) {
         if (!this.cpu) {
@@ -122,6 +128,9 @@ export default class Bus {
             case PPUReg.OAM_DMA:
                 this.ppu.write.OAM_DMA(value, this.readPage(value))
                 return
+            case 0x4016:
+                this.joypad.write(value)
+                return
         }
         if (addr >= PRG_ROM_START && addr <= PRG_ROM_END) {
             console.warn(`invalid write addr ${addr} on PRG_ROM`)
@@ -135,6 +144,8 @@ export default class Bus {
     memRead8 (addr: number): UINT8 {
         addr = Addr(addr)
         switch (true) {
+            case addr === 0x4016:
+                return this.joypad.read()
             case addr === PPUReg.Data:
             case addr === PPUReg.OAM_Data:
             case addr === PPUReg.Status:
