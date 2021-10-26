@@ -67,8 +67,27 @@ export function cpuRunningHelper (cpu: ICPU) {
             }
         },
         launch (done?: () => void) {
-            timeout = setInterval(() => {
-                for (let i = 0; i < 30000; i++) {
+            /**
+             * every runner render 1 frame can bring fluent picture
+             */
+            const F = 1.78 * 1000000
+            const FPS = Math.ceil(F / 341 / 261 * 3)
+            const T = 1000 / F
+            // why divide 3? if not I can get 3 renders per runner. why?
+            const RunnerStepCount = Math.floor(F / FPS / 3)
+            const RunnerInterval = Math.floor(1000 / FPS)
+
+            let lastTime = window.performance.now()
+
+            const runner = () => {
+                const curTime = window.performance.now()
+                const diff = curTime - lastTime
+                if (diff < RunnerInterval) {
+                    return requestAnimationFrame(runner)
+                }
+                lastTime = curTime
+                for (let i = 0; i < RunnerStepCount; i++) {
+                    /*
                     if (shouldStop()) {
                         clearInterval(timeout)
                         typeof done === 'function'
@@ -76,6 +95,7 @@ export function cpuRunningHelper (cpu: ICPU) {
                             : ''
                         return
                     }
+                    */
                     try {
                         cpu.step()
                     } catch (e) {
@@ -83,7 +103,9 @@ export function cpuRunningHelper (cpu: ICPU) {
                         throw e
                     }
                 }
-            }, 15);
+                requestAnimationFrame(runner)
+            }
+            requestAnimationFrame(runner)
         },
         launchWithLog () {
             timeout = setInterval(() => {

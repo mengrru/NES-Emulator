@@ -157,11 +157,17 @@ export class REG_Status extends FlagReg {
     constructor () {
         super()
     }
-    spriteOverflow (): boolean {
+    get spriteOverflow (): boolean {
         return !!this.value[5]
     }
-    sprite0Hit (): boolean {
+    set spriteOverflow (v: boolean) {
+        this.value[5] = +v
+    }
+    get sprite0Hit (): boolean {
         return !!this.value[6]
+    }
+    set sprite0Hit (v: boolean) {
+        this.value[6] = +v
     }
     get inVblank (): boolean {
         return !!this.value[7]
@@ -189,6 +195,12 @@ export class REG_OAMData extends SingleWriteReg {
 export class REG_Scroll extends DoubleWriteReg {
     constructor () {
         super()
+    }
+    get x (): number {
+        return this.value[0]
+    }
+    get y (): number {
+        return this.value[1]
     }
 }
 

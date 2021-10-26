@@ -136,6 +136,8 @@ export class PPU {
                 return self.regMask.get()
             },
             [PPUReg.Scroll] () {
+                // after reading PPUSTATUS to reset the address latch
+                self.regScroll.reset()
                 return self.regScroll.get()
             },
             [PPUReg.Controller] () {
@@ -177,6 +179,10 @@ export class PPU {
     private tick () {
         const cycle = this._clockCycle
         if (cycle === 341) {
+            if (this.isSprite0Hit) {
+                this.regStatus.sprite0Hit = true
+            }
+
             this._clockCycle = 0
             this.scanline++
 
@@ -185,15 +191,23 @@ export class PPU {
             }
             if (this.scanline === 241) {
                 this.regStatus.inVblank = true
+                this.regStatus.sprite0Hit = false
                 if (this.regController.hasNMI) {
                     this.IR_NMI()
                 }
             }
             if (this.scanline === 261) {
-                this.regStatus.inVblank = false
                 this.scanline = 0
+                this.regStatus.inVblank = false
+                this.regStatus.sprite0Hit = false
             }
         }
+    }
+
+    get isSprite0Hit (): boolean {
+        const x = this.OAMData[3]
+        const y = this.OAMData[0]
+        return (this.scanline === y) && (x <= this._clockCycle) && this.regMask.showSprites
     }
 
     IR_NMI () {
@@ -276,21 +290,23 @@ export class PPU {
             startVRAMAddr, startVRAMAddr + 1024
         ).slice(-64)
         const LEN = 32 * 30
+        const scale = this.bus.screen.scale
         const res = []
         for (let i = nametableStartAddr, j = 0; i < nametableStartAddr + LEN; i++, j++) {
             const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + CHRBank
             const paletteIndex = getPaletteIndex(j % 32, Math.floor(j / 32), attributeTable)
-            res.push(combineToATile(
+            const tile = (combineToATile(
                 this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
                 this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16),
                 getBgPalette(this.paletteTable, paletteIndex)
             ))
+            this.bus.screen.drawATile(tile, j % 32 * scale * 8, Math.floor(j / 32) * scale * 8)
         }
-        this.bus.screen.drawBg(res)
     }
 
     private renderSprites () {
         const oam = this.OAMData
+        const scale = this.bus.screen.scale
         for (let i = oam.length - 4; i >= 0; i-=4) {
             const x = oam[i + 3]
             const y = oam[i]
@@ -314,7 +330,6 @@ export class PPU {
                 palette, flipV, flipH, true
             )
 
-            const scale = this.bus.screen.scale
             this.bus.screen.drawATile(tile, x * scale, y * scale)
         }
     }
@@ -377,10 +392,10 @@ function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[], 
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
             const a = v ? 7 - i : i, b = h ? 7 - j : j
-            if (!res[a]) {
+            if (res[a] === undefined) {
                 res[a] = []
             }
-            const code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2)
+            const code = (ByteN(high[i], j) << 1) | ByteN(low[i], j)
             if (isSprite) {
                 res[a][b] = code === 0 ? [0, 0, 0, 0] : Colors[palette[code]]
             } else {
@@ -391,13 +406,6 @@ function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[], 
     return res
 }
 
-function Byte (x: BYTE) {
-    return {
-        gets (n: number): string {
-            return ((x >> n) & 1).toString()
-        },
-        getn (n: number): number {
-            return ((x >> n) & 1)
-        }
-    }
+function ByteN (x: BYTE, n: number): number {
+    return ((x >> n) & 1)
 }

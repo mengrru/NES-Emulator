@@ -34,6 +34,7 @@ export default class CPU implements ICPU{
          * 
          * nestest log: https://www.qmtpro.com/~nes/misc/nestest.log
          */
+        /*
         const snapshot = {
             PC: ('00' + to16(this.Register.PC)).slice(-4),
             A: ('0' + to16(this.Register.A)).slice(-2),
@@ -43,6 +44,7 @@ export default class CPU implements ICPU{
             SP: ('0' + to16(this.Register.SP)).slice(-2),
             CYC: this.clockCycle
         }
+        */
 
         const { opcInfo, arg } = this.resolveAStatement()
         const addrRes = AddressingMode[opcInfo.mode](this, arg, opcInfo.name)
@@ -50,7 +52,7 @@ export default class CPU implements ICPU{
         this.takeCycles(cycle)
 
         return {
-            ...snapshot,
+        //    ...snapshot,
             opcInfo,
             arg,
             addrRes
@@ -80,7 +82,7 @@ export default class CPU implements ICPU{
     }
 
     readByteByPC (): BYTE {
-        return this.memRead(this.Register.PC++)
+        return this.bus.memRead8(this.Register.PC++)
     }
 
     takeCycles (num = 1) {

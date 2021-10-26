@@ -29,12 +29,25 @@ export default class Screen {
 
     drawATile (tile: Tile, X: number, Y: number) {
         const S = this.scale
+        const W = this.imageData.width
         for (let i = 0; i < 8; i++) {
             for (let j = 0; j < 8; j++) {
-                fillRect(this.imageData, tile[i][j],
-                         X + (7 - j) * S,
-                         Y + (i * S),
-                         S, S)
+                const Y_ = Y + (i * S)
+                const X_ = X + (7 - j) * S
+                const pixel = this.imageData.data
+                const color = tile[i][j]
+                for (let y = Y_; y < Y_ + S; y++) {
+                    for (let x = X_; x < X_ + S; x++) {
+                        const index = y * W * 4 + x * 4
+                        if (color[3] === 0) {
+                            continue
+                        }
+                        pixel[index] = color[0]
+                        pixel[index + 1] = color[1]
+                        pixel[index + 2] = color[2]
+                        pixel[index + 3] = 255
+                    }
+                }
             }
         }
     }
