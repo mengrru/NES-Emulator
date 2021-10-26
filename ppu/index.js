@@ -20,6 +20,7 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             this.regAddress = new registers_1.REG_Address();
             this.regData = new registers_1.REG_Data();
             this.regOAMDMA = new registers_1.REG_OAMDMA();
+            this.lastTime = window.performance.now();
             this.CHRROM = bus.rom.CHRROM;
             this.mirroring = bus.rom.screenMirroring;
             this.bus = bus;
@@ -101,6 +102,7 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                         return self.regMask.get();
                     },
                     _a[memory_map_1.PPUReg.Scroll] = function () {
+                        self.regScroll.reset();
                         return self.regScroll.get();
                     },
                     _a[memory_map_1.PPUReg.Controller] = function () {
@@ -133,6 +135,9 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
         PPU.prototype.tick = function () {
             var cycle = this._clockCycle;
             if (cycle === 341) {
+                if (this.isSprite0Hit) {
+                    this.regStatus.sprite0Hit = true;
+                }
                 this._clockCycle = 0;
                 this.scanline++;
                 if (this.scanline === 240) {
@@ -140,16 +145,27 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                 }
                 if (this.scanline === 241) {
                     this.regStatus.inVblank = true;
+                    this.regStatus.sprite0Hit = false;
                     if (this.regController.hasNMI) {
                         this.IR_NMI();
                     }
                 }
                 if (this.scanline === 261) {
-                    this.regStatus.inVblank = false;
                     this.scanline = 0;
+                    this.regStatus.inVblank = false;
+                    this.regStatus.sprite0Hit = false;
                 }
             }
         };
+        Object.defineProperty(PPU.prototype, "isSprite0Hit", {
+            get: function () {
+                var x = this.OAMData[3];
+                var y = this.OAMData[0];
+                return (this.scanline === y) && (x <= this._clockCycle) && this.regMask.showSprites;
+            },
+            enumerable: false,
+            configurable: true
+        });
         PPU.prototype.IR_NMI = function () {
             this.bus.cpu.IR_NMI();
         };
@@ -212,16 +228,18 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             var startVRAMAddr = mirroringAddr(nametableStartAddr - VRAM_START, this.mirroring);
             var attributeTable = this.VRAM.slice(startVRAMAddr, startVRAMAddr + 1024).slice(-64);
             var LEN = 32 * 30;
+            var scale = this.bus.screen.scale;
             var res = [];
             for (var i = nametableStartAddr, j = 0; i < nametableStartAddr + LEN; i++, j++) {
                 var tileStartAddr = (this.VRAMRead(i) || 0) * 16 + CHRBank;
                 var paletteIndex = getPaletteIndex(j % 32, Math.floor(j / 32), attributeTable);
-                res.push(combineToATile(this.CHRROM.slice(tileStartAddr, tileStartAddr + 8), this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16), getBgPalette(this.paletteTable, paletteIndex)));
+                var tile = (combineToATile(this.CHRROM.slice(tileStartAddr, tileStartAddr + 8), this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16), getBgPalette(this.paletteTable, paletteIndex)));
+                this.bus.screen.drawATile(tile, j % 32 * scale * 8, Math.floor(j / 32) * scale * 8);
             }
-            this.bus.screen.drawBg(res);
         };
         PPU.prototype.renderSprites = function () {
             var oam = this.OAMData;
+            var scale = this.bus.screen.scale;
             for (var i = oam.length - 4; i >= 0; i -= 4) {
                 var x = oam[i + 3];
                 var y = oam[i];
@@ -237,7 +255,6 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                 var CHRBank = this.regController.spriteAddr;
                 var tileStartAddr = CHRBank + index * 16;
                 var tile = combineToATile(this.CHRROM.slice(tileStartAddr, tileStartAddr + 8), this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16), palette, flipV, flipH, true);
-                var scale = this.bus.screen.scale;
                 this.bus.screen.drawATile(tile, x * scale, y * scale);
             }
         };
@@ -300,10 +317,10 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
         for (var i = 0; i < 8; i++) {
             for (var j = 0; j < 8; j++) {
                 var a = v ? 7 - i : i, b = h ? 7 - j : j;
-                if (!res[a]) {
+                if (res[a] === undefined) {
                     res[a] = [];
                 }
-                var code = parseInt(Byte(high[i]).gets(j) + Byte(low[i]).gets(j), 2);
+                var code = (ByteN(high[i], j) << 1) | ByteN(low[i], j);
                 if (isSprite) {
                     res[a][b] = code === 0 ? [0, 0, 0, 0] : colors_1.default[palette[code]];
                 }
@@ -314,15 +331,8 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
         }
         return res;
     }
-    function Byte(x) {
-        return {
-            gets: function (n) {
-                return ((x >> n) & 1).toString();
-            },
-            getn: function (n) {
-                return ((x >> n) & 1);
-            }
-        };
+    function ByteN(x, n) {
+        return ((x >> n) & 1);
     }
 });
 //# sourceMappingURL=index.js.map

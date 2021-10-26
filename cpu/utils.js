@@ -60,15 +60,20 @@ define(["require", "exports", "../logger"], function (require, exports, logger_1
                 }
             },
             launch: function (done) {
-                timeout = setInterval(function () {
-                    for (var i = 0; i < 30000; i++) {
-                        if (shouldStop()) {
-                            clearInterval(timeout);
-                            typeof done === 'function'
-                                ? done()
-                                : '';
-                            return;
-                        }
+                var F = 1.78 * 1000000;
+                var FPS = Math.ceil(F / 341 / 261 * 3);
+                var T = 1000 / F;
+                var RunnerStepCount = Math.floor(F / FPS / 3);
+                var RunnerInterval = Math.floor(1000 / FPS);
+                var lastTime = window.performance.now();
+                var runner = function () {
+                    var curTime = window.performance.now();
+                    var diff = curTime - lastTime;
+                    if (diff < RunnerInterval) {
+                        return requestAnimationFrame(runner);
+                    }
+                    lastTime = curTime;
+                    for (var i = 0; i < RunnerStepCount; i++) {
                         try {
                             cpu.step();
                         }
@@ -77,7 +82,9 @@ define(["require", "exports", "../logger"], function (require, exports, logger_1
                             throw e;
                         }
                     }
-                }, 15);
+                    requestAnimationFrame(runner);
+                };
+                requestAnimationFrame(runner);
             },
             launchWithLog: function () {
                 timeout = setInterval(function () {

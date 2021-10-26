@@ -23,9 +23,25 @@ define(["require", "exports"], function (require, exports) {
         };
         Screen.prototype.drawATile = function (tile, X, Y) {
             var S = this.scale;
+            var W = this.imageData.width;
             for (var i = 0; i < 8; i++) {
                 for (var j = 0; j < 8; j++) {
-                    fillRect(this.imageData, tile[i][j], X + (7 - j) * S, Y + (i * S), S, S);
+                    var Y_ = Y + (i * S);
+                    var X_ = X + (7 - j) * S;
+                    var pixel = this.imageData.data;
+                    var color = tile[i][j];
+                    for (var y = Y_; y < Y_ + S; y++) {
+                        for (var x = X_; x < X_ + S; x++) {
+                            var index = y * W * 4 + x * 4;
+                            if (color[3] === 0) {
+                                continue;
+                            }
+                            pixel[index] = color[0];
+                            pixel[index + 1] = color[1];
+                            pixel[index + 2] = color[2];
+                            pixel[index + 3] = 255;
+                        }
+                    }
                 }
             }
         };

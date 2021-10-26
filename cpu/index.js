@@ -1,15 +1,4 @@
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
-define(["require", "exports", "./addressing-mode", "./instructions", "./opcode", "./registers", "./utils"], function (require, exports, addressing_mode_1, instructions_1, opcode_1, registers_1, utils_1) {
+define(["require", "exports", "./addressing-mode", "./instructions", "./opcode", "./registers"], function (require, exports, addressing_mode_1, instructions_1, opcode_1, registers_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var CPU = (function () {
@@ -29,22 +18,15 @@ define(["require", "exports", "./addressing-mode", "./instructions", "./opcode",
             configurable: true
         });
         CPU.prototype.step = function () {
-            var snapshot = {
-                PC: ('00' + utils_1.to16(this.Register.PC)).slice(-4),
-                A: ('0' + utils_1.to16(this.Register.A)).slice(-2),
-                X: ('0' + utils_1.to16(this.Register.X)).slice(-2),
-                Y: ('0' + utils_1.to16(this.Register.Y)).slice(-2),
-                P: ('0' + utils_1.to16(this.Register.PS)).slice(-2),
-                SP: ('0' + utils_1.to16(this.Register.SP)).slice(-2),
-                CYC: this.clockCycle
-            };
             var _a = this.resolveAStatement(), opcInfo = _a.opcInfo, arg = _a.arg;
             var addrRes = addressing_mode_1.AddressingMode[opcInfo.mode](this, arg, opcInfo.name);
             var cycle = (opcInfo.cycles + instructions_1.Instructions[opcInfo.name](this, opcInfo.mode, addrRes));
             this.takeCycles(cycle);
-            return __assign(__assign({}, snapshot), { opcInfo: opcInfo,
+            return {
+                opcInfo: opcInfo,
                 arg: arg,
-                addrRes: addrRes });
+                addrRes: addrRes
+            };
         };
         CPU.prototype.resolveAStatement = function () {
             var opcode = this.readByteByPC();
@@ -68,7 +50,7 @@ define(["require", "exports", "./addressing-mode", "./instructions", "./opcode",
             };
         };
         CPU.prototype.readByteByPC = function () {
-            return this.memRead(this.Register.PC++);
+            return this.bus.memRead8(this.Register.PC++);
         };
         CPU.prototype.takeCycles = function (num) {
             if (num === void 0) { num = 1; }

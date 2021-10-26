@@ -238,12 +238,26 @@ define(["require", "exports"], function (require, exports) {
         function REG_Status() {
             return _super.call(this) || this;
         }
-        REG_Status.prototype.spriteOverflow = function () {
-            return !!this.value[5];
-        };
-        REG_Status.prototype.sprite0Hit = function () {
-            return !!this.value[6];
-        };
+        Object.defineProperty(REG_Status.prototype, "spriteOverflow", {
+            get: function () {
+                return !!this.value[5];
+            },
+            set: function (v) {
+                this.value[5] = +v;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(REG_Status.prototype, "sprite0Hit", {
+            get: function () {
+                return !!this.value[6];
+            },
+            set: function (v) {
+                this.value[6] = +v;
+            },
+            enumerable: false,
+            configurable: true
+        });
         Object.defineProperty(REG_Status.prototype, "inVblank", {
             get: function () {
                 return !!this.value[7];
@@ -278,6 +292,20 @@ define(["require", "exports"], function (require, exports) {
         function REG_Scroll() {
             return _super.call(this) || this;
         }
+        Object.defineProperty(REG_Scroll.prototype, "x", {
+            get: function () {
+                return this.value[0];
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(REG_Scroll.prototype, "y", {
+            get: function () {
+                return this.value[1];
+            },
+            enumerable: false,
+            configurable: true
+        });
         return REG_Scroll;
     }(DoubleWriteReg));
     exports.REG_Scroll = REG_Scroll;
