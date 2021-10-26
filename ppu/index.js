@@ -20,7 +20,6 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             this.regAddress = new registers_1.REG_Address();
             this.regData = new registers_1.REG_Data();
             this.regOAMDMA = new registers_1.REG_OAMDMA();
-            this.lastTime = window.performance.now();
             this.CHRROM = bus.rom.CHRROM;
             this.mirroring = bus.rom.screenMirroring;
             this.bus = bus;
