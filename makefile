@@ -6,7 +6,7 @@ clean:
 	rm -rf build/
 
 run:
-	make clean && make build && http-server -p 3006 build/
+	make clean && make build && ./node_modules/http-server/bin/http-server -p 3006 build/
 
 .PHONY: test
 test:

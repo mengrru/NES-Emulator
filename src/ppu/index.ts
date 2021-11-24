@@ -3,7 +3,8 @@ import { NESPPUMap, PPUReg } from "../memory-map"
 import { BYTE, BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
 import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
 import Colors from './colors'
-import {Tile} from "./ppu.def"
+import {RGB, Tile} from "./ppu.def"
+import PPUTiming from "./timing"
 
 /**
 * Graphics data
@@ -34,34 +35,54 @@ import {Tile} from "./ppu.def"
 type PPUAddr = UINT16
 type VRAMAddr = UINT16
 type OAMAddr = UINT8
+type ScreenX = number
+type ScreenY = number
+type NametableX = number
+type NametableY = number
+type DoubleScreenX = number
+type DoubleScreenY = number
+
+interface VRAMDataWrapper {
+    data: number,
+    attrIndex: number,
+    paletteIndexPosi: number
+}
 
 const { CHR_ROM_START, CHR_ROM_END,
     VRAM_START, VRAM_END,
     PALETTES_START, PALETTES_END } = NESPPUMap.ADDR_SPACE
 
 export class PPU {
-    private bus: Bus
+    bus: Bus
 
-    private mirroring: Mirroring
-    private CHRROM: Uint8Array
-    private paletteTable: number[] = Array(32).fill(0)
-    private VRAM: number[] = Array(2048).fill(0)
-    private OAMData: number[] = Array(64 * 4).fill(0)
+    mirroring: Mirroring
+    CHRROM: Uint8Array
+    paletteTable: number[] = Array(32).fill(0)
+    VRAM: number[] = Array(2048).fill(0)
+    OAMData: number[] = Array(64 * 4).fill(0)
 
-    private _clockCycle: number = 0
-    private scanline: number = 0
+    _clockCycle: number = 0
+    scanline: number = 0
 
-    private internalBuf: UINT8 = 0
+    internalBuf: UINT8 = 0
+    v: UINT16 = 0
+    t: UINT16 = 0
+    x: UINT8 = 0
+    w: UINT8 = 0
 
-    private regController = new REG_Controller(this)
-    private regMask = new REG_Mask()
+    regController = new REG_Controller(this)
+    regMask = new REG_Mask()
     regStatus = new REG_Status()
-    private regOAMAddress = new REG_OAMAddress()
-    private regOAMData = new REG_OAMData()
-    private regScroll = new REG_Scroll()
-    private regAddress = new REG_Address()
-    private regData = new REG_Data()
-    private regOAMDMA = new REG_OAMDMA()
+    regOAMAddress = new REG_OAMAddress()
+    regOAMData = new REG_OAMData()
+    regScroll = new REG_Scroll()
+    regAddress = new REG_Address()
+    regData = new REG_Data()
+    regOAMDMA = new REG_OAMDMA()
+
+    timing = new PPUTiming(this)
+
+    VRAMMap: VRAMDataWrapper[] = genVRAMMap()
 
     constructor (bus: Bus) {
         this.CHRROM = bus.rom.CHRROM
@@ -96,6 +117,8 @@ export class PPU {
                 } else {
                     self.regController.updateBit(i, data)
                 }
+                self.t &= 0b111_0011_1111_1111
+                self.t |= (data & 0b11) << 10
             },
             [PPUReg.Mask] (data: UINT8 | BIT, i: number = -1) {
                 self.regMask.set(data)
@@ -111,9 +134,31 @@ export class PPU {
             },
             [PPUReg.Scroll] (data: UINT8) {
                 self.regScroll.updateByte(data)
+                if (self.w === 0) {
+                    self.t &= 0b111_1111_1110_0000
+                    self.t |= (data & 0b1111_1000) >> 3
+                    self.x = data & 0b0000_0111
+                    self.w = 1
+                } else {
+                    self.t &= 0b000_1100_0001_1111
+                    self.t |= (data & 0b1100_0000) << 2
+                    self.t |= (data & 0b0011_1000) << 2
+                    self.t |= (data & 0b111) << 12
+                    self.w = 0
+                }
             },
             [PPUReg.Address] (data: UINT8) {
                 self.regAddress.updateByte(data)
+                if (self.w === 0) {
+                    self.t &= 0b000_0000_1111_1111
+                    self.t |= (data & 0b11_1111) << 8
+                    self.w = 1
+                } else {
+                    self.t &= 0b111_1111_0000_0000
+                    self.t |= data
+                    self.v = self.t
+                    self.w = 0
+                }
             },
             [PPUReg.Data] (data: UINT8) {
                 self.regData.set(data)
@@ -150,6 +195,8 @@ export class PPU {
                 return self.regAddress.value[1]
             },
             [PPUReg.Status] () {
+                self.w = 0
+                self.regScroll.reset()
                 self.regAddress.reset()
                 return self.regStatus.get()
             },
@@ -177,37 +224,27 @@ export class PPU {
      * PPU clock cycles are 3 times faster than CPU clock cycles
      */
     private tick () {
-        const cycle = this._clockCycle
-        if (cycle === 341) {
-            if (this.isSprite0Hit) {
-                this.regStatus.sprite0Hit = true
-            }
+        if (this._clockCycle === 341) {
 
             this._clockCycle = 0
             this.scanline++
 
-            if (this.scanline === 240) {
-                this.frame()
-            }
-            if (this.scanline === 241) {
-                this.regStatus.inVblank = true
-                this.regStatus.sprite0Hit = false
-                if (this.regController.hasNMI) {
-                    this.IR_NMI()
-                }
-            }
-            if (this.scanline === 261) {
+            if (this.scanline === 262) {
                 this.scanline = 0
-                this.regStatus.inVblank = false
-                this.regStatus.sprite0Hit = false
             }
         }
+
+        this.timing.exec(this.scanline, this._clockCycle)
     }
 
     get isSprite0Hit (): boolean {
         const x = this.OAMData[3]
         const y = this.OAMData[0]
         return (this.scanline === y) && (x <= this._clockCycle) && this.regMask.showSprites
+    }
+
+    get renderingEnable (): boolean {
+        return this.regMask.showBg || this.regMask.showSprites
     }
 
     IR_NMI () {
@@ -241,6 +278,21 @@ export class PPU {
     private VRAMWrite (addr: PPUAddr, data: UINT8) {
         const realAddr = mirroringAddr(addr - VRAM_START, this.mirroring)
         this.VRAM[realAddr] = data
+
+        const VRAMAddr = addr - VRAM_START
+        if (VRAMAddr < 0x3c0) {
+            const i = VRAMAddr
+            this.VRAMMap[i + Math.floor(i / 32) * 32].data = data
+        } else if (VRAMAddr >= 0x400 && VRAMAddr < 0x7c0) {
+            const i = VRAMAddr - 0x400
+            this.VRAMMap[i + (Math.floor(i / 32) + 1) * 32].data = data
+        } else if (VRAMAddr >= 0x800 && VRAMAddr < 0xbc0) {
+            const i = VRAMAddr - 64 * 2
+            this.VRAMMap[i + Math.floor((i - 0x800) / 32) * 32].data = data
+        } else if (VRAMAddr >= 0xc00 && VRAMAddr < 0xfc0) {
+            const i = VRAMAddr - 0x400 - 64 * 2
+            this.VRAMMap[i + (Math.floor((i - 0x800) / 32) + 1) * 32].data = data
+        }
     }
 
     private memRead (addr: PPUAddr) {
@@ -276,15 +328,37 @@ export class PPU {
         }
     }
 
-    private frame (){
+    frame (){
         this.renderBackground()
         this.renderSprites()
         this.bus.screen.render()
     }
 
+    /*
+    private getPixelFromScrollCoord (X: DoubleScreenX, Y: DoubleScreenY) {
+        const CHRBank = this.regController.backgroundAddr
+        const tileX = Math.floor(X / 8), tileY = Math.floor(Y / 8)
+        const tileLeftTopX = X % 8, tileLeftTopY = Y % 8
+        const tileStartAddr = this.VRAMMap[tileY * 64 + tileX] * 16 + CHRBank
+
+        const nametableStartAddr = this.regController.nametable
+        const startVRAMAddr = mirroringAddr(nametableStartAddr - VRAM_START, this.mirroring)
+        const attributeTable = this.VRAM.slice(
+            startVRAMAddr, startVRAMAddr + 1024
+        ).slice(-64)
+
+        const tile = (combineToATile(
+            this.CHRROM.slice(tileStartAddr, tileStartAddr + 8),
+            this.CHRROM.slice(tileStartAddr + 8, tileStartAddr + 16),
+            getBgPalette(this.paletteTable, paletteIndex)
+        ))
+    }
+    */
+
     private renderBackground () {
         const nametableStartAddr = this.regController.nametable
         const CHRBank = this.regController.backgroundAddr
+
         const startVRAMAddr = mirroringAddr(nametableStartAddr - VRAM_START, this.mirroring)
         const attributeTable = this.VRAM.slice(
             startVRAMAddr, startVRAMAddr + 1024
@@ -293,6 +367,7 @@ export class PPU {
         const scale = this.bus.screen.scale
         const res = []
         for (let i = nametableStartAddr, j = 0; i < nametableStartAddr + LEN; i++, j++) {
+            // const realPPUAddr = scrollAddr(this.mirroring, nametableStartAddr, i, this.regScroll.x, this.regScroll.y)
             const tileStartAddr = (this.VRAMRead(i) || 0) * 16 + CHRBank
             const paletteIndex = getPaletteIndex(j % 32, Math.floor(j / 32), attributeTable)
             const tile = (combineToATile(
@@ -367,6 +442,80 @@ function getPaletteIndex (x: number, y: number, attributeTable: number[]): numbe
     }
 }
 
+function computedAttributeIndex (x: number, y: number) {
+    return Math.floor(x / 4) + Math.floor(y / 4) * (32 / 4)
+}
+
+function computedPaletteIndexPosi (x: number, y: number) {
+    switch ((Math.floor(x % 4 / 2) << 1) + Math.floor(y % 4 / 2)) {
+        case 0b00: return 0
+        case 0b10: return 1
+        case 0b01: return 2
+        case 0b11: return 3
+    }
+}
+
+function genVRAMMap (): VRAMDataWrapper[] {
+    const LEN = 32 * 30 * 4
+    const res = Array(LEN)
+    for (let VRAMAddr = 0; VRAMAddr < LEN; VRAMAddr++) {
+        let x, y, mappedIndex
+        if (VRAMAddr < 0x3c0) {
+            const i = VRAMAddr
+            mappedIndex = i + Math.floor(i / 32) * 32
+            x = VRAMAddr % 32
+            y = Math.floor(VRAMAddr / 32)
+        } else if (VRAMAddr >= 0x400 && VRAMAddr < 0x7c0) {
+            const i = VRAMAddr - 0x400
+            mappedIndex = i + (Math.floor(i / 32) + 1) * 32
+            x = i % 32
+            y = Math.floor(i / 32)
+        } else if (VRAMAddr >= 0x800 && VRAMAddr < 0xbc0) {
+            const i = VRAMAddr - 64 * 2
+            mappedIndex = i + Math.floor((i - 0x800) / 32) * 32
+            x = (VRAMAddr - 0x800) % 32
+            y = Math.floor((VRAMAddr - 0x800) / 32)
+        } else if (VRAMAddr >= 0xc00 && VRAMAddr < 0xfc0) {
+            const i = VRAMAddr - 0x400 - 64 * 2
+            mappedIndex = i + (Math.floor((i - 0x800) / 32) + 1) * 32
+            x = (VRAMAddr - 0xc00) % 32
+            y = Math.floor((VRAMAddr - 0xc00) / 32)
+        }
+        res[mappedIndex] = {
+            data: 0,
+            attrIndex: computedAttributeIndex(x, y),
+            paletteIndexPosi: computedPaletteIndexPosi(x, y)
+        }
+    }
+    return res
+}
+
+function scrollAddr (mirroring: Mirroring, nametableStartAddr: PPUAddr, addr: PPUAddr, x: number, y: number): PPUAddr {
+    if (mirroring === Mirroring.HORIZONTAL) {
+        const haddr = addr + Math.floor(x / 8) * 32
+        if (haddr - nametableStartAddr < (0x400 - 64)) {
+            return haddr
+        }
+        switch (nametableStartAddr) {
+            case 0x2000:
+                return haddr + 0x800 + 64
+            case 0x2400:
+                return haddr + 0x800 + 64
+            case 0x2800:
+                return haddr - 0x800 + 64
+            case 0x2c00:
+                return haddr - 0x1000 + 64
+        }
+    }
+    if (mirroring === Mirroring.VERTICAL) {
+        const vaddr = addr + Math.floor(x / 8) * 30
+        if (vaddr < 0x3000) {
+            return vaddr
+        }
+        return vaddr - 0x1000
+    }
+}
+
 function mirroringAddr (addr: VRAMAddr, mirroring: Mirroring): VRAMAddr {
     if (mirroring === Mirroring.VERTICAL) {
         return addr % 0x800
@@ -409,3 +558,5 @@ function combineToATile (low: Uint8Array, high: Uint8Array, palette?: number[], 
 function ByteN (x: BYTE, n: number): number {
     return ((x >> n) & 1)
 }
+
+function drawPixelFromVRAM (addr: VRAMAddr, map: RGB[]) {}

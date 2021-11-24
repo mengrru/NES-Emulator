@@ -8,6 +8,7 @@ export default class Screen {
     canvas: HTMLCanvasElement
     ctx: CanvasRenderingContext2D
     imageData: ImageData
+    imageDataData: Uint8ClampedArray
     constructor (canvas: HTMLCanvasElement, scale = 1) {
         canvas.width = W * scale
         canvas.height = H * scale
@@ -17,6 +18,16 @@ export default class Screen {
         this.scale = scale
 
         this.imageData = new ImageData(this.canvas.width, this.canvas.height)
+        this.imageDataData = this.imageData.data
+    }
+
+    drawAPixel (x: number, y: number, color: RGB) {
+        const S = this.scale
+        fillRect(
+            this.imageData.width,
+            this.imageDataData, color,
+            x * S, y * S, S, S
+        )
     }
 
     drawBg (tiles: Tile[]) {
@@ -56,18 +67,17 @@ export default class Screen {
     }
 }
 
-function fillRect (imageData: ImageData, color: RGB, X: number, Y: number, width: number, height: number) {
-    const pixel = imageData.data
+function fillRect (imageWidth: number, pixels: Uint8ClampedArray, color: RGB, X: number, Y: number, width: number, height: number) {
     for (let y = Y; y < Y + height; y++) {
         for (let x = X; x < X + width; x++) {
-            const index = y * imageData.width * 4 + x * 4
+            const index = y * imageWidth * 4 + x * 4
             if (color[3] === 0) {
                 continue
             }
-            pixel[index] = color[0]
-            pixel[index + 1] = color[1]
-            pixel[index + 2] = color[2]
-            pixel[index + 3] = 255
+            pixels[index] = color[0]
+            pixels[index + 1] = color[1]
+            pixels[index + 2] = color[2]
+            pixels[index + 3] = 255
         }
     }
 }
