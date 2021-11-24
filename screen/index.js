@@ -13,7 +13,12 @@ define(["require", "exports"], function (require, exports) {
             this.ctx = canvas.getContext('2d');
             this.scale = scale;
             this.imageData = new ImageData(this.canvas.width, this.canvas.height);
+            this.imageDataData = this.imageData.data;
         }
+        Screen.prototype.drawAPixel = function (x, y, color) {
+            var S = this.scale;
+            fillRect(this.imageData.width, this.imageDataData, color, x * S, y * S, S, S);
+        };
         Screen.prototype.drawBg = function (tiles) {
             for (var i = 0; i < tiles.length; i++) {
                 var X = i % (W / 8) * 8 * this.scale;
@@ -51,18 +56,17 @@ define(["require", "exports"], function (require, exports) {
         return Screen;
     }());
     exports.default = Screen;
-    function fillRect(imageData, color, X, Y, width, height) {
-        var pixel = imageData.data;
+    function fillRect(imageWidth, pixels, color, X, Y, width, height) {
         for (var y = Y; y < Y + height; y++) {
             for (var x = X; x < X + width; x++) {
-                var index = y * imageData.width * 4 + x * 4;
+                var index = y * imageWidth * 4 + x * 4;
                 if (color[3] === 0) {
                     continue;
                 }
-                pixel[index] = color[0];
-                pixel[index + 1] = color[1];
-                pixel[index + 2] = color[2];
-                pixel[index + 3] = 255;
+                pixels[index] = color[0];
+                pixels[index + 1] = color[1];
+                pixels[index + 2] = color[2];
+                pixels[index + 3] = 255;
             }
         }
     }

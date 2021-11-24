@@ -1,4 +1,4 @@
-define(["require", "exports", "../memory-map", "../public.def", "./registers", "./colors"], function (require, exports, memory_map_1, public_def_1, registers_1, colors_1) {
+define(["require", "exports", "../memory-map", "../public.def", "./registers", "./colors", "./timing"], function (require, exports, memory_map_1, public_def_1, registers_1, colors_1, timing_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PPU = void 0;
@@ -11,6 +11,10 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             this._clockCycle = 0;
             this.scanline = 0;
             this.internalBuf = 0;
+            this.v = 0;
+            this.t = 0;
+            this.x = 0;
+            this.w = 0;
             this.regController = new registers_1.REG_Controller(this);
             this.regMask = new registers_1.REG_Mask();
             this.regStatus = new registers_1.REG_Status();
@@ -20,6 +24,8 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             this.regAddress = new registers_1.REG_Address();
             this.regData = new registers_1.REG_Data();
             this.regOAMDMA = new registers_1.REG_OAMDMA();
+            this.timing = new timing_1.default(this);
+            this.VRAMMap = genVRAMMap();
             this.CHRROM = bus.rom.CHRROM;
             this.mirroring = bus.rom.screenMirroring;
             this.bus = bus;
@@ -56,6 +62,8 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                         else {
                             self.regController.updateBit(i, data);
                         }
+                        self.t &= 29695;
+                        self.t |= (data & 3) << 10;
                     },
                     _a[memory_map_1.PPUReg.Mask] = function (data, i) {
                         if (i === void 0) { i = -1; }
@@ -72,9 +80,33 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                     },
                     _a[memory_map_1.PPUReg.Scroll] = function (data) {
                         self.regScroll.updateByte(data);
+                        if (self.w === 0) {
+                            self.t &= 32736;
+                            self.t |= (data & 248) >> 3;
+                            self.x = data & 7;
+                            self.w = 1;
+                        }
+                        else {
+                            self.t &= 3103;
+                            self.t |= (data & 192) << 2;
+                            self.t |= (data & 56) << 2;
+                            self.t |= (data & 7) << 12;
+                            self.w = 0;
+                        }
                     },
                     _a[memory_map_1.PPUReg.Address] = function (data) {
                         self.regAddress.updateByte(data);
+                        if (self.w === 0) {
+                            self.t &= 255;
+                            self.t |= (data & 63) << 8;
+                            self.w = 1;
+                        }
+                        else {
+                            self.t &= 32512;
+                            self.t |= data;
+                            self.v = self.t;
+                            self.w = 0;
+                        }
                     },
                     _a[memory_map_1.PPUReg.Data] = function (data) {
                         self.regData.set(data);
@@ -114,6 +146,8 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
                         return self.regAddress.value[1];
                     },
                     _a[memory_map_1.PPUReg.Status] = function () {
+                        self.w = 0;
+                        self.regScroll.reset();
                         self.regAddress.reset();
                         return self.regStatus.get();
                     },
@@ -132,35 +166,27 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             configurable: true
         });
         PPU.prototype.tick = function () {
-            var cycle = this._clockCycle;
-            if (cycle === 341) {
-                if (this.isSprite0Hit) {
-                    this.regStatus.sprite0Hit = true;
-                }
+            if (this._clockCycle === 341) {
                 this._clockCycle = 0;
                 this.scanline++;
-                if (this.scanline === 240) {
-                    this.frame();
-                }
-                if (this.scanline === 241) {
-                    this.regStatus.inVblank = true;
-                    this.regStatus.sprite0Hit = false;
-                    if (this.regController.hasNMI) {
-                        this.IR_NMI();
-                    }
-                }
-                if (this.scanline === 261) {
+                if (this.scanline === 262) {
                     this.scanline = 0;
-                    this.regStatus.inVblank = false;
-                    this.regStatus.sprite0Hit = false;
                 }
             }
+            this.timing.exec(this.scanline, this._clockCycle);
         };
         Object.defineProperty(PPU.prototype, "isSprite0Hit", {
             get: function () {
                 var x = this.OAMData[3];
                 var y = this.OAMData[0];
                 return (this.scanline === y) && (x <= this._clockCycle) && this.regMask.showSprites;
+            },
+            enumerable: false,
+            configurable: true
+        });
+        Object.defineProperty(PPU.prototype, "renderingEnable", {
+            get: function () {
+                return this.regMask.showBg || this.regMask.showSprites;
             },
             enumerable: false,
             configurable: true
@@ -184,6 +210,23 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
         PPU.prototype.VRAMWrite = function (addr, data) {
             var realAddr = mirroringAddr(addr - VRAM_START, this.mirroring);
             this.VRAM[realAddr] = data;
+            var VRAMAddr = addr - VRAM_START;
+            if (VRAMAddr < 0x3c0) {
+                var i = VRAMAddr;
+                this.VRAMMap[i + Math.floor(i / 32) * 32].data = data;
+            }
+            else if (VRAMAddr >= 0x400 && VRAMAddr < 0x7c0) {
+                var i = VRAMAddr - 0x400;
+                this.VRAMMap[i + (Math.floor(i / 32) + 1) * 32].data = data;
+            }
+            else if (VRAMAddr >= 0x800 && VRAMAddr < 0xbc0) {
+                var i = VRAMAddr - 64 * 2;
+                this.VRAMMap[i + Math.floor((i - 0x800) / 32) * 32].data = data;
+            }
+            else if (VRAMAddr >= 0xc00 && VRAMAddr < 0xfc0) {
+                var i = VRAMAddr - 0x400 - 64 * 2;
+                this.VRAMMap[i + (Math.floor((i - 0x800) / 32) + 1) * 32].data = data;
+            }
         };
         PPU.prototype.memRead = function (addr) {
             addr %= 0x4000;
@@ -285,6 +328,79 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
             case 3: return (attribute >> 6) & 3;
         }
     }
+    function computedAttributeIndex(x, y) {
+        return Math.floor(x / 4) + Math.floor(y / 4) * (32 / 4);
+    }
+    function computedPaletteIndexPosi(x, y) {
+        switch ((Math.floor(x % 4 / 2) << 1) + Math.floor(y % 4 / 2)) {
+            case 0: return 0;
+            case 2: return 1;
+            case 1: return 2;
+            case 3: return 3;
+        }
+    }
+    function genVRAMMap() {
+        var LEN = 32 * 30 * 4;
+        var res = Array(LEN);
+        for (var VRAMAddr = 0; VRAMAddr < LEN; VRAMAddr++) {
+            var x = void 0, y = void 0, mappedIndex = void 0;
+            if (VRAMAddr < 0x3c0) {
+                var i = VRAMAddr;
+                mappedIndex = i + Math.floor(i / 32) * 32;
+                x = VRAMAddr % 32;
+                y = Math.floor(VRAMAddr / 32);
+            }
+            else if (VRAMAddr >= 0x400 && VRAMAddr < 0x7c0) {
+                var i = VRAMAddr - 0x400;
+                mappedIndex = i + (Math.floor(i / 32) + 1) * 32;
+                x = i % 32;
+                y = Math.floor(i / 32);
+            }
+            else if (VRAMAddr >= 0x800 && VRAMAddr < 0xbc0) {
+                var i = VRAMAddr - 64 * 2;
+                mappedIndex = i + Math.floor((i - 0x800) / 32) * 32;
+                x = (VRAMAddr - 0x800) % 32;
+                y = Math.floor((VRAMAddr - 0x800) / 32);
+            }
+            else if (VRAMAddr >= 0xc00 && VRAMAddr < 0xfc0) {
+                var i = VRAMAddr - 0x400 - 64 * 2;
+                mappedIndex = i + (Math.floor((i - 0x800) / 32) + 1) * 32;
+                x = (VRAMAddr - 0xc00) % 32;
+                y = Math.floor((VRAMAddr - 0xc00) / 32);
+            }
+            res[mappedIndex] = {
+                data: 0,
+                attrIndex: computedAttributeIndex(x, y),
+                paletteIndexPosi: computedPaletteIndexPosi(x, y)
+            };
+        }
+        return res;
+    }
+    function scrollAddr(mirroring, nametableStartAddr, addr, x, y) {
+        if (mirroring === public_def_1.Mirroring.HORIZONTAL) {
+            var haddr = addr + Math.floor(x / 8) * 32;
+            if (haddr - nametableStartAddr < (0x400 - 64)) {
+                return haddr;
+            }
+            switch (nametableStartAddr) {
+                case 0x2000:
+                    return haddr + 0x800 + 64;
+                case 0x2400:
+                    return haddr + 0x800 + 64;
+                case 0x2800:
+                    return haddr - 0x800 + 64;
+                case 0x2c00:
+                    return haddr - 0x1000 + 64;
+            }
+        }
+        if (mirroring === public_def_1.Mirroring.VERTICAL) {
+            var vaddr = addr + Math.floor(x / 8) * 30;
+            if (vaddr < 0x3000) {
+                return vaddr;
+            }
+            return vaddr - 0x1000;
+        }
+    }
     function mirroringAddr(addr, mirroring) {
         if (mirroring === public_def_1.Mirroring.VERTICAL) {
             return addr % 0x800;
@@ -333,5 +449,6 @@ define(["require", "exports", "../memory-map", "../public.def", "./registers", "
     function ByteN(x, n) {
         return ((x >> n) & 1);
     }
+    function drawPixelFromVRAM(addr, map) { }
 });
 //# sourceMappingURL=index.js.map
