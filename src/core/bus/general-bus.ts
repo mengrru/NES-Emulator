@@ -1,5 +1,6 @@
 import CPU from "../cpu";
-import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE } from "../public.def";
+import { PRG_ROM_PAGE_SIZE } from "../public.def";
+import type { ADDR, BYTE, CartridgeResolvedData, MemoryMap } from "../public.def";
 
 export default class Bus {
     PRGROMLen: number

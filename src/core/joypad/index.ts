@@ -1,6 +1,6 @@
-import {UINT8} from "../public.def"
+import type {UINT8} from "../public.def"
 
-enum Btn {
+export enum Btn {
     A        = 0b00000001,
     B        = 0b00000010,
     Select   = 0b00000100,
@@ -16,7 +16,7 @@ export default class JoyPad {
     curReportedBtn: number = 0
 
     constructor () {
-        this.initUI()
+        //this.initUI()
     }
 
     write (data: UINT8) {

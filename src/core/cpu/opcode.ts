@@ -1,4 +1,4 @@
-import { ADDRMODE } from "./cpu.d"
+import type { ADDRMODE } from "./cpu.d"
 
 const e = function (name: string, opcode: number, bytes: number, cycles: number, pageCycles: number, mode: keyof ADDRMODE) {
     return {

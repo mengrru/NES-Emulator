@@ -1,10 +1,9 @@
 import Bus from '../bus'
 import { AddressingMode } from './addressing-mode'
-import { PS, REG, ICPU, BYTE } from './cpu.d'
+import type { PS, REG, ICPU, BYTE } from './cpu.d'
 import { Instructions } from './instructions'
 import Opcode from './opcode'
 import { ProcessorStatus, Registers, setFlag } from './registers'
-import { to16 } from './utils'
 
 export default class CPU implements ICPU{
     Register: REG

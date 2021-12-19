@@ -1,4 +1,4 @@
-import { ADDRMODE, PS, ICPU, AddressingRes } from './cpu.d'
+import type { ADDRMODE, PS, ICPU, AddressingRes } from './cpu.d'
 import { setFlag } from './registers'
 import { int8, uint16, isCrossPage } from './utils'
 

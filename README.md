@@ -5,9 +5,9 @@
 Make sure that you have installed `node` and `npm`.
 
 ```
-npm i && make run
+npm i && npm run dev
 ```
-Then visit `localhost:3006`.
+Then visit `localhost:5000`.
 
 ## References
 

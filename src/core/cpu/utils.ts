@@ -1,5 +1,5 @@
 import Logger from '../logger'
-import { INT8, UINT8, UINT16, ICPU } from './cpu.d'
+import type { INT8, UINT8, UINT16, ICPU } from './cpu.d'
 
 // little-endian
 /*
@@ -33,7 +33,8 @@ export function to16 (n: number): string {
 }
 
 export function cpuRunningHelper (cpu: ICPU) {
-    let timeout: NodeJS.Timeout
+    let timeout: number
+    let animationFrameId: number
     const runningCallbackTable: { [T: number]: (() => void)[] } = {}
     const shouldStop = () => {
         const { ADDR_SPACE } = cpu.memoryMap
@@ -56,6 +57,9 @@ export function cpuRunningHelper (cpu: ICPU) {
     }
 
     return {
+        stop () {
+          cancelAnimationFrame(animationFrameId)
+        },
         exec (num: number = 1) {
             for (let i = 0; i < num; i++) {
                 const s = cpu.step()
@@ -83,7 +87,8 @@ export function cpuRunningHelper (cpu: ICPU) {
                 const curTime = window.performance.now()
                 const diff = curTime - lastTime
                 if (diff < RunnerInterval) {
-                    return requestAnimationFrame(runner)
+                    animationFrameId = requestAnimationFrame(runner)
+                    return
                 }
                 lastTime = curTime
                 for (let i = 0; i < RunnerStepCount; i++) {
@@ -103,9 +108,9 @@ export function cpuRunningHelper (cpu: ICPU) {
                         throw e
                     }
                 }
-                requestAnimationFrame(runner)
+                animationFrameId = requestAnimationFrame(runner)
             }
-            requestAnimationFrame(runner)
+            animationFrameId = requestAnimationFrame(runner)
         },
         launchWithLog () {
             timeout = setInterval(() => {

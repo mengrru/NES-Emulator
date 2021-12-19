@@ -1,7 +1,7 @@
 // load program code into memory starting at 0x8000 address.
 // Program ROM: 0x8000 - 0xffff
 
-import { MemoryMap } from "./public.def";
+import type { MemoryMap } from "./public.def";
 
 // instruction stream start somewhere in this space (not necessarily at 0x8000)
 export const NESCPUMap: MemoryMap = {

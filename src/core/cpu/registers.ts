@@ -1,4 +1,4 @@
-import { PS } from "./cpu"
+import type { PS } from "./cpu"
 
 export const setFlag = {
     C: function (PS: PS, value: boolean) {

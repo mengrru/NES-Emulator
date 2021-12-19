@@ -1,4 +1,4 @@
-import { MemoryMap } from "../public.def";
+import type { MemoryMap } from "../public.def";
 
 export const TestGameMap: MemoryMap = {
     ADDR_SPACE: {

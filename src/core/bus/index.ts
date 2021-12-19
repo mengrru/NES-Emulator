@@ -1,5 +1,6 @@
 import Cartridge from "../cartridges";
-import { ADDR, BYTE, CartridgeResolvedData, MemoryMap, PRG_ROM_PAGE_SIZE, UINT8 } from "../public.def";
+import { PRG_ROM_PAGE_SIZE } from "../public.def";
+import type { ADDR, BYTE, CartridgeResolvedData, MemoryMap, UINT8 } from "../public.def";
 import { NESCPUMap, PPUReg } from '../memory-map'
 import { PPU } from "../ppu/index";
 import CPU from "../cpu/index";
@@ -79,8 +80,10 @@ export default class Bus {
 
     constructor () {
         this.memory = Array(0xffff + 1).fill(0)
-        this._screen = new Screen(document.createElement('canvas'), 2)
         this._joypad = new JoyPad()
+    }
+    memoryReset () {
+        this.memory = Array(0xffff + 1).fill(0)
     }
     get PRGROMLen () {
         return this._PRGROMLen
@@ -100,15 +103,21 @@ export default class Bus {
     get joypad () {
         return this._joypad
     }
-    loadROM (rom: CartridgeResolvedData) {
+    connectCartridge (cartridge: Cartridge) {
         if (!this.cpu) {
             throw new Error('there has no CPU.')
         }
-        this._rom = rom
-        this._PRGROMLen = rom.PRGROM.length
+        this.memoryReset()
+
+        const cdata = cartridge.resolve()
+        this._rom = cdata
+        this._PRGROMLen = cdata.PRGROM.length
         this._ppu = new PPU(this)
 
         this.cpu.IR_RESET()
+    }
+    connectScreen (screen: Screen) {
+        this._screen = screen
     }
     connectCPU (cpu: CPU) {
         this._cpu = cpu

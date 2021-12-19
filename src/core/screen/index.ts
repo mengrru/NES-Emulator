@@ -1,4 +1,4 @@
-import {RGB, Tile} from "../ppu/ppu.def"
+import type {RGB, Tile} from "../ppu/ppu.def"
 
 const W = 256
 const H = 240
@@ -16,6 +16,8 @@ export default class Screen {
         this.canvas = canvas
         this.ctx = canvas.getContext('2d')
         this.scale = scale
+
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height)
 
         this.imageData = new ImageData(this.canvas.width, this.canvas.height)
         this.imageDataData = this.imageData.data

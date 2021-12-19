@@ -1,4 +1,4 @@
-import {RGB} from "./ppu.def"
+import type {RGB} from "./ppu.def"
 
 export default [
     '#6d6d6d', '#002491', '#0000da', '#6d48da', '#91006d', '#b6006d', '#b62400', '#914800',

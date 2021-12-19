@@ -1,22 +1,12 @@
 {
+    "extends": "@tsconfig/svelte/tsconfig.json",
+
     "compilerOptions": {
-        "lib": ["es5", "es2015.promise", "dom", "es2015"],
-        "target": "es5",
-        "noImplicitAny": true,
-        "removeComments": true,
-        "preserveConstEnums": true,
-        "typeRoots": [
-            "node_modules/@types"
-        ],
-        "outDir": "build",
-        "module": "amd",
-        "moduleResolution": "node",
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "allowSyntheticDefaultImports": true,
-        "declaration": false,
-        "sourceMap": true
+      "types": ["svelte"],
+      "importsNotUsedAsValues": "preserve"
     },
+
     "include": ["src/**/*"],
-    "exclude": ["node_modules", "**/*.spec.ts", "**/__test__/*"]
+    "exclude": ["node_modules/*", "**/*.spec.ts", "**/__test__/*", "public/*"]
+
 }

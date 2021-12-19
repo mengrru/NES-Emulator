@@ -1,4 +1,4 @@
-import { OPERAND, ADDR, ZADDR, ADDRMODE, ICPU } from './cpu.d'
+import type { OPERAND, ADDR, ZADDR, ADDRMODE, ICPU } from './cpu.d'
 import { isCrossPage } from './utils'
 
 /**

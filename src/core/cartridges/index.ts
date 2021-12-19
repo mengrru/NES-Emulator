@@ -23,8 +23,8 @@
  * 
  */
 
+import type {CartridgeResolvedData} from '../public.def'
 import { 
-    CartridgeResolvedData,
     CHR_ROM_PAGE_SIZE,
     Mirroring,
     NESFileSymbol,

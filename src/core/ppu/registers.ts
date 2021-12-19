@@ -1,5 +1,5 @@
 import { PPU } from "."
-import { BIT, UINT16, UINT8 } from "../public.def"
+import type { BIT, UINT16, UINT8 } from "../public.def"
 
 class FlagReg {
     value: BIT[] = Array(8).fill(0)

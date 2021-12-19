@@ -1,9 +1,10 @@
 import Bus from "../bus"
 import { NESPPUMap, PPUReg } from "../memory-map"
-import { BYTE, BIT, CartridgeResolvedData, Mirroring, UINT16, UINT8 } from "../public.def"
+import { Mirroring } from "../public.def"
+import type { BYTE, BIT, UINT16, UINT8 } from "../public.def"
 import { REG_Address, REG_Controller, REG_Data, REG_Mask, REG_OAMAddress, REG_OAMData, REG_OAMDMA, REG_Scroll, REG_Status } from "./registers"
 import Colors from './colors'
-import {RGB, Tile} from "./ppu.def"
+import type {RGB, Tile} from "./ppu.def"
 import PPUTiming from "./timing"
 
 /**

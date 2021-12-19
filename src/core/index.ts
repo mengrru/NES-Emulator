@@ -26,16 +26,16 @@ loadROM('./cartridges/nestest.nes', (buffer) => {
 */
 /* test tiles render on screen */
 loadROM('./cartridges/pac-man.nes', (buffer) => {
+    const canvas = document.createElement('canvas')
+    const screen = new Screen(canvas, 2)
     const cartridge = new Cartridge(new Uint8Array(buffer))
-    const cdata = cartridge.resolve()
     const bus = new Bus()
     const cpu = new CPU(NESCPUMap, bus)
     const cpuRunner = cpuRunningHelper(cpu)
-    // const canvas = document.createElement('canvas')
-    // const screen = new Screen(canvas, 2)
 
-    document.body.appendChild(bus.screen.canvas)
-    bus.loadROM(cdata)
+    document.body.appendChild(canvas)
+    bus.connectScreen(screen)
+    bus.connectCartridge(cartridge)
     cpuRunner.launch()
     // screen.render_test(bus.ppu.tiles_test())
 })
@@ -72,3 +72,5 @@ loadROM('./cartridges/snake.nes', (buffer) => {
     testGame.run()
 })
 */
+
+export default {}
