@@ -4,24 +4,33 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NES</title>
+    <title>Mengru的NES模拟器</title>
     <style>
-        div, span {
-            font-family: 'Courier New', Courier, monospace;
+      html {
+        height: 100%;
+      }
+      div, span {
+        font-family: 'Courier New', Courier, monospace;
+      }
+      body {
+        height: 100%;
+        background: #fff;
+        background-image: 
+          linear-gradient(45deg, #E76E55a0 25%, transparent 0, transparent 75%, #E76E55a0 0),
+          linear-gradient(45deg, #E76E55a0 25%, transparent 0, transparent 75%, #E76E55a0 0);
+        background-position: 0 0, 50px 50px;
+        background-size: 100px 100px;
+        background-attachment: fixed;
+      }
+      @media (max-width: 592px) {
+        html {
+          font-size: 10px;
         }
+      }
     </style>
+    <link href="./bundle.css" rel="stylesheet"/>
 </head>
 <body>
-    <div id="app">
-        <!--<button id="step-btn">step</button>>-->
-        <p>上下左右：w s a d</p>
-        <p>A：j B：k</p>
-        <p>start: space</p>
-        <p>select: return</p>
-    </div>
-    <script src="./require.js"></script>
-    <script>
-        requirejs(["index"], function() {});
-    </script>
+    <script src="./bundle.js"></script>
 </body>
 </html>
